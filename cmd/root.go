@@ -99,17 +99,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "e":
 			lineNumber, _ := core.ContainsLine(m.date, m.tasks[m.cursor].Line)
-			core.OpenEditor(m.date, lineNumber, false) // Add false as the third argument
+			if err := core.OpenEditor(m.date, lineNumber, false); err != nil {
+				fmt.Fprintf(os.Stderr, "Error opening editor: %v\n", err)
+			}
 			a := &m
 			a.Refresh()
 		case "enter", " ":
 			selected := m.tasks[m.cursor].Selected
 			if selected {
 				m.tasks[m.cursor].Selected = false
-				core.UpdateTaskStatus(false, m.tasks[m.cursor].Line, m.date)
+				if err := core.UpdateTaskStatus(false, m.tasks[m.cursor].Line, m.date); err != nil {
+					fmt.Fprintf(os.Stderr, "Error updating task status: %v\n", err)
+				}
 			} else {
 				m.tasks[m.cursor].Selected = true
-				core.UpdateTaskStatus(true, m.tasks[m.cursor].Line, m.date)
+				if err := core.UpdateTaskStatus(true, m.tasks[m.cursor].Line, m.date); err != nil {
+					fmt.Fprintf(os.Stderr, "Error updating task status: %v\n", err)
+				}
 			}
 		}
 	}
