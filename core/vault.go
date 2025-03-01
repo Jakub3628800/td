@@ -127,7 +127,9 @@ func AddTask(date time.Time, line string) error {
 
 	filename := getFilename(date)
 	if !fileExists(filename) {
-		createFile(filename)
+		if err := createFile(filename); err != nil {
+			return fmt.Errorf("failed to create file: %w", err)
+		}
 	}
 	file, err := openFile(date)
 	if err != nil {
@@ -265,7 +267,9 @@ func OpenEditor(date time.Time, lineNumber int, copyPrevious bool) error {
 func UpdateTaskStatus(selected bool, taskDescription string, date time.Time) error {
 	filename := getFilename(date)
 	if !fileExists(filename) {
-		createFile(filename)
+		if err := createFile(filename); err != nil {
+			return fmt.Errorf("failed to create file: %w", err)
+		}
 	}
 
 	file, err := os.ReadFile(filename)
