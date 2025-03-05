@@ -55,10 +55,10 @@ func getFilename(date time.Time) string {
 func GetHeader(date time.Time) string {
 	if intervalMode == "daily" {
 		return date.Format("2006-01-02") + " " + date.Weekday().String() + "\n\n"
-	} else {
-		_, week := date.ISOWeek()
-		return "Week " + strconv.Itoa(week) + "\n\n"
 	}
+
+	_, week := date.ISOWeek()
+	return "Week " + strconv.Itoa(week) + "\n\n"
 }
 
 func NextDate(date time.Time) time.Time {
@@ -108,7 +108,22 @@ func createFile(path string) error {
 	}
 
 	if fileExists(templateFile()) {
-		cmd := exec.Command("cp", templateFile(), path)
+		// Use filepath.Clean to sanitize the path
+		cleanTemplatePath := filepath.Clean(templateFile())
+		cleanDestPath := filepath.Clean(path)
+
+		// Use absolute paths to avoid path traversal
+		absTemplatePath, err := filepath.Abs(cleanTemplatePath)
+		if err != nil {
+			return fmt.Errorf("failed to get absolute path: %w", err)
+		}
+
+		absDestPath, err := filepath.Abs(cleanDestPath)
+		if err != nil {
+			return fmt.Errorf("failed to get absolute path: %w", err)
+		}
+
+		cmd := exec.Command("cp", absTemplatePath, absDestPath)
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf("failed to copy file: %w", err)
 		}
@@ -127,7 +142,9 @@ func AddTask(date time.Time, line string) error {
 
 	filename := getFilename(date)
 	if !fileExists(filename) {
-		createFile(filename)
+		if err := createFile(filename); err != nil {
+			return fmt.Errorf("failed to create file: %w", err)
+		}
 	}
 	file, err := openFile(date)
 	if err != nil {
@@ -157,9 +174,8 @@ func linesWithSelection(filename string) ([]Task, error) {
 	if !fileExists(filename) {
 		if fileExists(templateFile()) {
 			return linesWithSelection(templateFile())
-		} else {
-			return tasks, nil
 		}
+		return tasks, nil
 	}
 
 	file, err := os.Open(filename)
@@ -228,7 +244,7 @@ func OpenEditor(date time.Time, lineNumber int, copyPrevious bool) error {
 		header := GetHeader(date)
 		content = header + content
 
-		if err := os.WriteFile(filename, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filename, []byte(content), 0600); err != nil {
 			return fmt.Errorf("failed to create file: %w", err)
 		}
 	}
@@ -265,7 +281,9 @@ func OpenEditor(date time.Time, lineNumber int, copyPrevious bool) error {
 func UpdateTaskStatus(selected bool, taskDescription string, date time.Time) error {
 	filename := getFilename(date)
 	if !fileExists(filename) {
-		createFile(filename)
+		if err := createFile(filename); err != nil {
+			return fmt.Errorf("failed to create file: %w", err)
+		}
 	}
 
 	file, err := os.ReadFile(filename)
@@ -294,7 +312,7 @@ func UpdateTaskStatus(selected bool, taskDescription string, date time.Time) err
 
 	updatedContent := strings.Join(lines, "\n")
 
-	err = os.WriteFile(filename, []byte(updatedContent), 0644)
+	err = os.WriteFile(filename, []byte(updatedContent), 0600)
 	if err != nil {
 		return fmt.Errorf("error writing to file: %v", err)
 	}

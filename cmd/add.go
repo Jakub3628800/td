@@ -5,10 +5,11 @@ package cmd
 
 import (
 	"fmt"
-	"td/core"
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"td/core"
 )
 
 var dateFlag string
@@ -17,7 +18,7 @@ var addCmd = &cobra.Command{
 	Use:   "add",
 	Short: "Add task to today's list.",
 	Args:  cobra.ExactArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, args []string) {
 
 		date, err := parseDate(dateFlag)
 		if err != nil {

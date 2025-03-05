@@ -6,11 +6,12 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"td/core"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
+
+	"td/core"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -27,7 +28,7 @@ Features:
 - 📁 Markdown file storage for easy version control and portability
 - 📆 Daily, weekly, and monthly view options
 - 🖥️ Clean and intuitive TUI for distraction-free productivity`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, _ []string) {
 		p := tea.NewProgram(initialModel())
 		if _, err := p.Run(); err != nil {
 			fmt.Printf("Alas, there's been an error: %v", err)
@@ -163,17 +164,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			)
 		case "e":
 			lineNumber, _ := core.ContainsLine(m.date, m.tasks[m.cursor].Line)
-			core.OpenEditor(m.date, lineNumber, false) // Add false as the third argument
+			if err := core.OpenEditor(m.date, lineNumber, false); err != nil {
+				return m, tea.Quit
+			}
 			a := &m
 			a.Refresh()
 		case "enter", " ":
 			selected := m.tasks[m.cursor].Selected
 			if selected {
 				m.tasks[m.cursor].Selected = false
-				core.UpdateTaskStatus(false, m.tasks[m.cursor].Line, m.date)
+				if err := core.UpdateTaskStatus(false, m.tasks[m.cursor].Line, m.date); err != nil {
+					return m, tea.Quit
+				}
 			} else {
 				m.tasks[m.cursor].Selected = true
-				core.UpdateTaskStatus(true, m.tasks[m.cursor].Line, m.date)
+				if err := core.UpdateTaskStatus(true, m.tasks[m.cursor].Line, m.date); err != nil {
+					return m, tea.Quit
+				}
 			}
 		}
 	}

@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"td/core"
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
+
+	"td/core"
 )
 
 var duration int
@@ -19,7 +20,7 @@ var pomoCmd = &cobra.Command{
 	Use:   "pomo",
 	Short: "Start a Pomodoro timer",
 	Long:  `Start a Pomodoro timer for focused work sessions. Default duration is 25 minutes.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, _ []string) {
 		m := initialPomoModel()
 		if _, err := tea.NewProgram(m).Run(); err != nil {
 			fmt.Println("Error running program:", err)
@@ -64,7 +65,7 @@ func initialPomoModel() pomoModel {
 }
 
 func (m pomoModel) Init() tea.Cmd {
-        // core.PlayMusic()
+	// core.PlayMusic()
 	return tickCmd()
 }
 
@@ -101,7 +102,7 @@ func (m pomoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		elapsed := time.Since(m.start) - m.elapsed
 		if elapsed >= m.duration {
 			core.SendNotification(fmt.Sprintf("pomo session %dm done", duration), false)
-                        core.PauseMusic()
+			core.PauseMusic()
 			return m, tea.Quit
 		}
 
@@ -152,4 +153,3 @@ func tickCmd() tea.Cmd {
 		return tickMsg(t)
 	})
 }
-
