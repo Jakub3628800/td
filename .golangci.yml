@@ -28,10 +28,10 @@ issues:
       linters:
         - gosec
         - errcheck
+  exclude-dirs:
+    - bin
+    - .github
 
 run:
   timeout: 5m
-  tests: true
-  skip-dirs:
-    - bin
-    - .github 
+  tests: true 
