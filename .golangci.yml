@@ -35,3 +35,4 @@ issues:
 run:
   timeout: 5m
   tests: true 
+  # Using exclude-dirs in issues section instead of skip-dirs here 
