@@ -20,21 +20,20 @@ To-Do ToDay is a simple, efficient Text User Interface (TUI) app for tracking ta
 
 ### Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/td.git
-   cd td
-   ```
+#### From Releases
 
-2. Build the application:
-   ```bash
-   go build -o td main.go
-   ```
+You can download the latest release from the [GitHub Releases page](https://github.com/yourusername/td/releases).
 
-3. (Optional) Move the binary to a location in your PATH for easy access:
-   ```bash
-   sudo mv td /usr/local/bin/
-   ```
+#### From Source
+
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/td.git
+cd td
+
+# Build and install
+make install
+```
 
 ## 🎯 Usage
 
@@ -77,6 +76,29 @@ Run the test suite:
 ```bash
 go test -v ./...
 ```
+
+### Version Management
+
+The project uses semantic versioning. To bump the version, use the provided script:
+
+```bash
+# Bump the patch version (0.1.0 -> 0.1.1)
+./scripts/bump-version.sh patch
+
+# Bump the minor version (0.1.0 -> 0.2.0)
+./scripts/bump-version.sh minor
+
+# Bump the major version (0.1.0 -> 1.0.0)
+./scripts/bump-version.sh major
+```
+
+### Release Process
+
+The project has an automated release process:
+
+1. When changes are pushed to the `master` branch, a new release is automatically created.
+2. The release version is determined by the version in `main.go`.
+3. To create a test release without pushing to master, you can manually trigger the "Test Release" workflow from the GitHub Actions tab.
 
 ## 📄 License
 

@@ -1,0 +1,79 @@
+name: Test Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: 'Mark as pre-release'
+        required: true
+        default: 'true'
+        type: boolean
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+          
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+        
+      - name: Run linters
+        run: golangci-lint run ./...
+
+      - name: Run tests
+        run: go test -v ./...
+
+  release:
+    name: Create Test Release
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.21'
+
+      - name: Extract version
+        id: extract_version
+        run: |
+          VERSION=$(grep -o '"[0-9]\+\.[0-9]\+\.[0-9]\+"' main.go | tr -d '"')
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          TEST_VERSION="${VERSION}-test.${TIMESTAMP}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "test_version=$TEST_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build release binaries
+        run: |
+          GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o bin/td-${{ steps.extract_version.outputs.test_version }}-linux-amd64 main.go
+          GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o bin/td-${{ steps.extract_version.outputs.test_version }}-darwin-amd64 main.go
+          GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o bin/td-${{ steps.extract_version.outputs.test_version }}-windows-amd64.exe main.go
+        env:
+          LDFLAGS: -ldflags "-X main.Version=${{ steps.extract_version.outputs.test_version }} -X main.Commit=$(git rev-parse --short HEAD) -X main.BuildDate=$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+      - name: Create Test Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.extract_version.outputs.test_version }}
+          name: Test Release v${{ steps.extract_version.outputs.test_version }}
+          draft: false
+          prerelease: ${{ github.event.inputs.prerelease }}
+          files: |
+            bin/td-${{ steps.extract_version.outputs.test_version }}-linux-amd64
+            bin/td-${{ steps.extract_version.outputs.test_version }}-darwin-amd64
+            bin/td-${{ steps.extract_version.outputs.test_version }}-windows-amd64.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
