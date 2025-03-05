@@ -83,11 +83,10 @@ func (m pomoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.elapsed += time.Since(m.pauseTime)
 				m.isPaused = false
 				return m, tickCmd()
-			} else {
-				m.isPaused = true
-				m.pauseTime = time.Now()
-				return m, nil
 			}
+			m.isPaused = true
+			m.pauseTime = time.Now()
+			return m, nil
 		}
 
 	case tea.WindowSizeMsg:
