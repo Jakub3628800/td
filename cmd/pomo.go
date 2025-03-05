@@ -3,14 +3,16 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
-	"td/core"
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
+
+	"td/core"
 )
 
 var duration int
@@ -19,7 +21,7 @@ var pomoCmd = &cobra.Command{
 	Use:   "pomo",
 	Short: "Start a Pomodoro timer",
 	Long:  `Start a Pomodoro timer for focused work sessions. Default duration is 25 minutes.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, _ []string) {
 		m := initialPomoModel()
 		if _, err := tea.NewProgram(m).Run(); err != nil {
 			fmt.Println("Error running program:", err)
@@ -64,7 +66,7 @@ func initialPomoModel() pomoModel {
 }
 
 func (m pomoModel) Init() tea.Cmd {
-        // core.PlayMusic()
+	// core.PlayMusic()
 	return tickCmd()
 }
 
@@ -73,17 +75,18 @@ func (m pomoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q":
+			// Record the session even when cancelled
+			recordPomoSession(duration, "cancelled")
 			return m, tea.Quit
 		case "p", " ":
 			if m.isPaused {
 				m.elapsed += time.Since(m.pauseTime)
 				m.isPaused = false
 				return m, tickCmd()
-			} else {
-				m.isPaused = true
-				m.pauseTime = time.Now()
-				return m, nil
 			}
+			m.isPaused = true
+			m.pauseTime = time.Now()
+			return m, nil
 		}
 
 	case tea.WindowSizeMsg:
@@ -101,7 +104,11 @@ func (m pomoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		elapsed := time.Since(m.start) - m.elapsed
 		if elapsed >= m.duration {
 			core.SendNotification(fmt.Sprintf("pomo session %dm done", duration), false)
-                        core.PauseMusic()
+			core.PauseMusic()
+
+			// Record the completed session
+			recordPomoSession(duration, "completed")
+
 			return m, tea.Quit
 		}
 
@@ -153,3 +160,58 @@ func tickCmd() tea.Cmd {
 	})
 }
 
+// Helper function to record pomodoro sessions
+func recordPomoSession(durationMinutes int, status string) {
+	today := time.Now()
+	timestamp := today.Format("15:04")
+
+	// Get the filename for today's date
+	year, month, day := today.Date()
+	vaultLoc := os.Getenv("TD_VAULT_LOC")
+	if vaultLoc == "" {
+		vaultLoc = ".td" // Default location
+	}
+
+	// Determine the file path based on the interval mode
+	intervalMode := os.Getenv("TD_INTERVAL_MODE")
+	if intervalMode == "" {
+		intervalMode = "weekly" // Default mode
+	}
+
+	var filename string
+	if intervalMode == "daily" {
+		filename = filepath.Join(vaultLoc, fmt.Sprintf("%d/%s/%02d.md", year, month.String(), day))
+	} else if intervalMode == "weekly" {
+		_, week := today.ISOWeek()
+		filename = filepath.Join(vaultLoc, fmt.Sprintf("%d/%s/week%d.md", year, month.String(), week))
+	} else {
+		// Monthly mode
+		filename = filepath.Join(vaultLoc, fmt.Sprintf("%d/%s/%s.md", year, month.String(), month.String()))
+	}
+
+	// Create directories if they don't exist
+	dir := filepath.Dir(filename)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating directory: %v\n", err)
+		return
+	}
+
+	// Open the file for appending
+	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error opening file: %v\n", err)
+		return
+	}
+	defer file.Close()
+
+	// Write the pomodoro record
+	statusText := ""
+	if status == "cancelled" {
+		statusText = " (cancelled)"
+	}
+
+	_, err = file.WriteString(fmt.Sprintf("\n--------------------------------\npomodoro session - %dmin (%s)%s\n", durationMinutes, timestamp, statusText))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error writing to file: %v\n", err)
+	}
+}
