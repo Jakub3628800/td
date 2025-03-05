@@ -6,7 +6,7 @@ on:
       prerelease:
         description: 'Mark as pre-release'
         required: true
-        default: 'true'
+        default: true
         type: boolean
 
 jobs:
