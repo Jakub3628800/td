@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -115,54 +114,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return err
 					}
 
-					// Add a separator and pomodoro session record
-					today := time.Now()
-					timestamp := today.Format("15:04")
-
-					// We need to directly append to the file without using the task format
-					// First, get the filename for today's date
-					year, month, day := today.Date()
-					vaultLoc := os.Getenv("TD_VAULT_LOC")
-					if vaultLoc == "" {
-						vaultLoc = ".td" // Default location
-					}
-
-					// Determine the file path based on the interval mode
-					intervalMode := os.Getenv("TD_INTERVAL_MODE")
-					if intervalMode == "" {
-						intervalMode = "weekly" // Default mode
-					}
-
-					var filename string
-					if intervalMode == "daily" {
-						filename = filepath.Join(vaultLoc, fmt.Sprintf("%d/%s/%02d.md", year, month.String(), day))
-					} else if intervalMode == "weekly" {
-						_, week := today.ISOWeek()
-						filename = filepath.Join(vaultLoc, fmt.Sprintf("%d/%s/week%d.md", year, month.String(), week))
-					} else {
-						// Monthly mode
-						filename = filepath.Join(vaultLoc, fmt.Sprintf("%d/%s/%s.md", year, month.String(), month.String()))
-					}
-
-					// Create directories if they don't exist
-					dir := filepath.Dir(filename)
-					if err := os.MkdirAll(dir, 0755); err != nil {
-						return err
-					}
-
-					// Open the file for appending
-					file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-					if err != nil {
-						return err
-					}
-					defer file.Close()
-
-					// Write the pomodoro record
-					_, err = file.WriteString(fmt.Sprintf("\n--------------------------------\npomodoro session - 25min (%s)\n", timestamp))
-					if err != nil {
-						return err
-					}
-
+					// The pomodoro session will record itself when completed
+					// We don't need to record anything here
 					return nil
 				},
 			)

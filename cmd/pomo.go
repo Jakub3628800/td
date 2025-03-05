@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -74,6 +75,7 @@ func (m pomoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q":
+			// Just quit without recording the session when cancelled
 			return m, tea.Quit
 		case "p", " ":
 			if m.isPaused {
@@ -103,6 +105,55 @@ func (m pomoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if elapsed >= m.duration {
 			core.SendNotification(fmt.Sprintf("pomo session %dm done", duration), false)
 			core.PauseMusic()
+
+			// Record the completed session
+			today := time.Now()
+			timestamp := today.Format("15:04")
+
+			// Get the filename for today's date
+			year, month, day := today.Date()
+			vaultLoc := os.Getenv("TD_VAULT_LOC")
+			if vaultLoc == "" {
+				vaultLoc = ".td" // Default location
+			}
+
+			// Determine the file path based on the interval mode
+			intervalMode := os.Getenv("TD_INTERVAL_MODE")
+			if intervalMode == "" {
+				intervalMode = "weekly" // Default mode
+			}
+
+			var filename string
+			if intervalMode == "daily" {
+				filename = filepath.Join(vaultLoc, fmt.Sprintf("%d/%s/%02d.md", year, month.String(), day))
+			} else if intervalMode == "weekly" {
+				_, week := today.ISOWeek()
+				filename = filepath.Join(vaultLoc, fmt.Sprintf("%d/%s/week%d.md", year, month.String(), week))
+			} else {
+				// Monthly mode
+				filename = filepath.Join(vaultLoc, fmt.Sprintf("%d/%s/%s.md", year, month.String(), month.String()))
+			}
+
+			// Create directories if they don't exist
+			dir := filepath.Dir(filename)
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				fmt.Fprintf(os.Stderr, "Error creating directory: %v\n", err)
+			} else {
+				// Open the file for appending
+				file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "Error opening file: %v\n", err)
+				} else {
+					defer file.Close()
+
+					// Write the pomodoro record
+					_, err = file.WriteString(fmt.Sprintf("\n--------------------------------\npomodoro session - %dmin (%s)\n", duration, timestamp))
+					if err != nil {
+						fmt.Fprintf(os.Stderr, "Error writing to file: %v\n", err)
+					}
+				}
+			}
+
 			return m, tea.Quit
 		}
 
