@@ -18,16 +18,16 @@ func SendNotification(msg string, silent bool) {
 }
 
 func PauseMusic() {
-  execPlayerctl("pause")
+	execPlayerctl("pause")
 }
 
 func PlayMusic() {
-  execPlayerctl("play")
+	execPlayerctl("play")
 }
 
 func execPlayerctl(subcmd string) {
-  err := exec.Command("playerctl", subcmd).Run()
-  if err != nil {
-    log.Fatal(err)
-  }
+	err := exec.Command("playerctl", subcmd).Run()
+	if err != nil {
+		log.Fatal(err)
+	}
 }

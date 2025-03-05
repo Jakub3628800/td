@@ -3,10 +3,11 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"td/core"
 	"time"
 
 	"github.com/spf13/cobra"
+
+	"td/core"
 )
 
 var copyPrevious bool
@@ -15,7 +16,7 @@ var editCmd = &cobra.Command{
 	Use:   "edit",
 	Short: "Edit today's task file",
 	Long:  `Open today's task file in your default editor.`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, _ []string) {
 		date := time.Now()
 		err := core.OpenEditor(date, 1, copyPrevious) // Start at line 1
 		if err != nil {

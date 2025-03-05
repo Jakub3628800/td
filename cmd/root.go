@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
-	"td/core"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
+
+	"td/core"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -27,7 +27,7 @@ Features:
 - 📁 Markdown file storage for easy version control and portability
 - 📆 Daily, weekly, and monthly view options
 - 🖥️ Clean and intuitive TUI for distraction-free productivity`,
-	Run: func(cmd *cobra.Command, args []string) {
+	Run: func(_ *cobra.Command, _ []string) {
 		p := tea.NewProgram(initialModel())
 		if _, err := p.Run(); err != nil {
 			fmt.Printf("Alas, there's been an error: %v", err)
@@ -101,70 +101,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "p":
 			// Run pomodoro session
+			cmd := exec.Command("td", "pomo")
+			cmd.Stdin = os.Stdin
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+
 			return m, tea.Sequence(
 				tea.Quit,
-				tea.ExecProcess(
-					exec.Command("td", "pomo"),
-					func(err error) tea.Msg {
-						if err != nil {
-							return err
-						}
-						// Add a separator and pomodoro session record
-						today := time.Now()
-						timestamp := today.Format("15:04")
+				func() tea.Msg {
+					err := cmd.Run()
+					if err != nil {
+						return err
+					}
 
-						// We need to directly append to the file without using the task format
-						// First, get the filename for today's date
-						year, month, day := today.Date()
-						vaultLoc := os.Getenv("TD_VAULT_LOC")
-						if vaultLoc == "" {
-							vaultLoc = ".td" // Default location
-						}
-
-						// Determine the file path based on the interval mode
-						intervalMode := os.Getenv("TD_INTERVAL_MODE")
-						if intervalMode == "" {
-							intervalMode = "weekly" // Default mode
-						}
-
-						var filename string
-						if intervalMode == "daily" {
-							filename = filepath.Join(vaultLoc, fmt.Sprintf("%d/%s/%02d.md", year, month.String(), day))
-						} else if intervalMode == "weekly" {
-							_, week := today.ISOWeek()
-							filename = filepath.Join(vaultLoc, fmt.Sprintf("%d/%s/week%d.md", year, month.String(), week))
-						} else {
-							// Monthly mode
-							filename = filepath.Join(vaultLoc, fmt.Sprintf("%d/%s/%s.md", year, month.String(), month.String()))
-						}
-
-						// Create directories if they don't exist
-						dir := filepath.Dir(filename)
-						if err := os.MkdirAll(dir, 0755); err != nil {
-							return err
-						}
-
-						// Open the file for appending
-						file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-						if err != nil {
-							return err
-						}
-						defer file.Close()
-
-						// Write the pomodoro record
-						_, err = file.WriteString(fmt.Sprintf("\n--------------------------------\npomodoro session - 25min (%s)\n", timestamp))
-						if err != nil {
-							return err
-						}
-
-						return nil
-					},
-				),
+					// The pomodoro session will record itself when completed
+					// We don't need to record anything here
+					return nil
+				},
 			)
 		case "e":
 			lineNumber, _ := core.ContainsLine(m.date, m.tasks[m.cursor].Line)
 			if err := core.OpenEditor(m.date, lineNumber, false); err != nil {
 				fmt.Fprintf(os.Stderr, "Error opening editor: %v\n", err)
+				return m, tea.Quit
 			}
 			a := &m
 			a.Refresh()
@@ -174,11 +133,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.tasks[m.cursor].Selected = false
 				if err := core.UpdateTaskStatus(false, m.tasks[m.cursor].Line, m.date); err != nil {
 					fmt.Fprintf(os.Stderr, "Error updating task status: %v\n", err)
+					return m, tea.Quit
 				}
 			} else {
 				m.tasks[m.cursor].Selected = true
 				if err := core.UpdateTaskStatus(true, m.tasks[m.cursor].Line, m.date); err != nil {
 					fmt.Fprintf(os.Stderr, "Error updating task status: %v\n", err)
+					return m, tea.Quit
 				}
 			}
 		}
