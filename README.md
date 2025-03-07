@@ -78,6 +78,34 @@ Run the test suite:
 go test -v ./...
 ```
 
+### Testing GitHub Actions Locally
+
+You can test GitHub Actions workflows locally using [act](https://github.com/nektos/act), a tool that runs GitHub Actions locally.
+
+1. Install act:
+   ```bash
+   # macOS
+   brew install act
+   
+   # Linux
+   curl -s https://raw.githubusercontent.com/nektos/act/master/install.sh | sudo bash
+   ```
+
+2. Create a `.secrets` file with your GitHub token:
+   ```
+   GITHUB_TOKEN=your_github_token_here
+   ```
+
+3. Run the test script:
+   ```bash
+   ./scripts/test-github-actions.sh
+   ```
+
+   Or specify a specific workflow:
+   ```bash
+   ./scripts/test-github-actions.sh -w test.yml
+   ```
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

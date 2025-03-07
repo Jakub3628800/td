@@ -1,3 +1,5 @@
 *.json
 bin/*
 .td
+# Act secrets file
+.secrets

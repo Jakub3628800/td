@@ -1,0 +1,13 @@
+# Configuration for nektos/act
+# https://github.com/nektos/act
+
+# Use a smaller image to speed up startup
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+
+# Skip some actions that might not work locally
+--action-timeout=30
+--artifact-server-path=/tmp/artifacts
+
+# Set environment variables
+-e INPUT_VERSION_TYPE=patch
+-e INPUT_PRERELEASE=false 
