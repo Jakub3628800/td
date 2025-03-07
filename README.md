@@ -82,6 +82,8 @@ go test -v ./...
 
 You can test GitHub Actions workflows locally using [act](https://github.com/nektos/act), a tool that runs GitHub Actions locally.
 
+#### Prerequisites
+
 1. Install act:
    ```bash
    # macOS
@@ -95,16 +97,46 @@ You can test GitHub Actions workflows locally using [act](https://github.com/nek
    ```
    GITHUB_TOKEN=your_github_token_here
    ```
+   
+   To create a token with the necessary permissions:
+   - Go to https://github.com/settings/tokens
+   - Click "Generate new token" (classic)
+   - Give it a name like "TD Release Token"
+   - Select the "repo" scope (Full control of private repositories)
+   - Click "Generate token"
+   - Copy the token and paste it in your `.secrets` file
 
-3. Run the test script:
+#### Testing Options
+
+1. **Simple local release test** (recommended for testing):
+   ```bash
+   ./scripts/test-release-locally.sh
+   ```
+   This script simulates a release without making any GitHub API calls.
+
+2. **Test with act in dry-run mode**:
+   ```bash
+   ./scripts/test-github-actions.sh --dry-run
+   ```
+   This will show what would happen without making any actual API calls.
+
+3. **Test with act using a simplified workflow**:
+   ```bash
+   ./scripts/test-github-actions.sh -w local-release-test.yml
+   ```
+   This uses a simplified workflow that's easier to test locally.
+
+4. **Full workflow test** (requires valid GitHub token with proper permissions):
    ```bash
    ./scripts/test-github-actions.sh
    ```
 
-   Or specify a specific workflow:
-   ```bash
-   ./scripts/test-github-actions.sh -w test.yml
-   ```
+#### Troubleshooting
+
+If you encounter a 403 Forbidden error when creating releases:
+1. Make sure your GitHub token has the "repo" scope
+2. Try using the simplified test workflow instead
+3. Consider creating the release directly on GitHub instead of testing locally
 
 ## 📄 License
 

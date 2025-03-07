@@ -5,9 +5,13 @@
 -P ubuntu-latest=catthehacker/ubuntu:act-latest
 
 # Skip some actions that might not work locally
---action-timeout=30
+--action-timeout=60
 --artifact-server-path=/tmp/artifacts
 
 # Set environment variables
 -e INPUT_VERSION_TYPE=patch
--e INPUT_PRERELEASE=false 
+-e INPUT_PRERELEASE=false
+
+# Enable GitHub API for release creation
+--env-file=.secrets
+--secret-file=.secrets 

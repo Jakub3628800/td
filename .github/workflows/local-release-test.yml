@@ -1,0 +1,53 @@
+name: Test Local Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: 'Mark as pre-release'
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  release:
+    name: Create Test Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Extract version
+        id: extract_version
+        run: |
+          VERSION=$(grep -o '"[0-9]\+\.[0-9]\+\.[0-9]\+"' main.go | tr -d '"')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+
+      - name: Build release binaries
+        run: |
+          mkdir -p bin
+          echo "Building test binaries..."
+          echo "This is a test binary for Linux" > bin/td-${{ steps.extract_version.outputs.version }}-linux-amd64
+          echo "This is a test binary for macOS" > bin/td-${{ steps.extract_version.outputs.version }}-darwin-amd64
+          echo "This is a test binary for Windows" > bin/td-${{ steps.extract_version.outputs.version }}-windows-amd64.exe
+          ls -la bin/
+
+      - name: Create Test Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.extract_version.outputs.version }}-test
+          name: Test Release v${{ steps.extract_version.outputs.version }}
+          draft: true
+          prerelease: true
+          files: |
+            bin/td-${{ steps.extract_version.outputs.version }}-linux-amd64
+            bin/td-${{ steps.extract_version.outputs.version }}-darwin-amd64
+            bin/td-${{ steps.extract_version.outputs.version }}-windows-amd64.exe
+          token: ${{ secrets.GITHUB_TOKEN }} 

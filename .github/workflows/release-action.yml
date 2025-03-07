@@ -90,7 +90,7 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ needs.bump-version.outputs.new_version }}
           name: Release v${{ needs.bump-version.outputs.new_version }}
@@ -100,5 +100,4 @@ jobs:
             bin/td-${{ needs.bump-version.outputs.new_version }}-linux-amd64
             bin/td-${{ needs.bump-version.outputs.new_version }}-darwin-amd64
             bin/td-${{ needs.bump-version.outputs.new_version }}-windows-amd64.exe
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          token: ${{ secrets.GITHUB_TOKEN }} 
