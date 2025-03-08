@@ -1,0 +1,62 @@
+name: Simple Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      prerelease:
+        description: 'Mark as pre-release'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write  # This is crucial for creating releases
+
+jobs:
+  release:
+    name: Create Simple Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Extract version
+        id: extract_version
+        run: |
+          VERSION=$(grep -o '"[0-9]\+\.[0-9]\+\.[0-9]\+"' main.go | tr -d '"')
+          TIMESTAMP=$(date +%Y%m%d%H%M%S)
+          TEST_VERSION="${VERSION}-test.${TIMESTAMP}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "test_version=$TEST_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
+          echo "Test version: $TEST_VERSION"
+
+      - name: Create test files
+        run: |
+          mkdir -p bin
+          echo "This is a test binary for Linux" > bin/td-test-linux-amd64
+          echo "This is a test binary for macOS" > bin/td-test-darwin-amd64
+          echo "This is a test binary for Windows" > bin/td-test-windows-amd64.exe
+          ls -la bin/
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: v${{ steps.extract_version.outputs.test_version }}
+          name: Simple Test Release v${{ steps.extract_version.outputs.test_version }}
+          draft: true
+          prerelease: true
+          artifacts: "bin/td-test-*"
+          artifactContentType: application/octet-stream
+          body: |
+            This is a test release created with a simplified workflow.
+            
+            ## Test Files
+            - Linux binary
+            - macOS binary
+            - Windows binary 
