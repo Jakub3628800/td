@@ -167,16 +167,10 @@ func recordPomoSession(durationMinutes int, status string) {
 
 	// Get the filename for today's date
 	year, month, day := today.Date()
-	vaultLoc := os.Getenv("TD_VAULT_LOC")
-	if vaultLoc == "" {
-		vaultLoc = ".td" // Default location
-	}
 
-	// Determine the file path based on the interval mode
-	intervalMode := os.Getenv("TD_INTERVAL_MODE")
-	if intervalMode == "" {
-		intervalMode = "weekly" // Default mode
-	}
+	// Use the same vault location and interval mode as the core package
+	vaultLoc := core.GetVaultLocation()
+	intervalMode := core.GetIntervalMode()
 
 	var filename string
 	if intervalMode == "daily" {

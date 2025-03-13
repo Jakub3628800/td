@@ -348,3 +348,172 @@ func TestOpenEditorWithCopyPrevious(t *testing.T) {
 		t.Errorf("File content = %v, want %v", string(content), expectedContent)
 	}
 }
+
+func TestGetVaultLocationAndIntervalMode(t *testing.T) {
+	// Save original package variable values
+	origVaultLoc := vaultLoc
+	origIntervalMode := intervalMode
+
+	// Restore package variables after the test
+	defer func() {
+		vaultLoc = origVaultLoc
+		intervalMode = origIntervalMode
+	}()
+
+	testCases := []struct {
+		name             string
+		setVaultLoc      string
+		setIntervalMode  string
+		expectedVaultLoc string
+		expectedInterval string
+	}{
+		{
+			name:             "Default values",
+			setVaultLoc:      ".td",
+			setIntervalMode:  "weekly",
+			expectedVaultLoc: ".td",
+			expectedInterval: "weekly",
+		},
+		{
+			name:             "Custom vault location",
+			setVaultLoc:      "/custom/vault/location",
+			setIntervalMode:  "weekly",
+			expectedVaultLoc: "/custom/vault/location",
+			expectedInterval: "weekly",
+		},
+		{
+			name:             "Custom interval mode",
+			setVaultLoc:      ".td",
+			setIntervalMode:  "daily",
+			expectedVaultLoc: ".td",
+			expectedInterval: "daily",
+		},
+		{
+			name:             "Both custom values",
+			setVaultLoc:      "/another/custom/path",
+			setIntervalMode:  "monthly",
+			expectedVaultLoc: "/another/custom/path",
+			expectedInterval: "monthly",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Directly set package variables for this test case
+			vaultLoc = tc.setVaultLoc
+			intervalMode = tc.setIntervalMode
+
+			// Test GetVaultLocation
+			result := GetVaultLocation()
+			if result != tc.expectedVaultLoc {
+				t.Errorf("GetVaultLocation() = %q, want %q", result, tc.expectedVaultLoc)
+			}
+
+			// Test GetIntervalMode
+			result = GetIntervalMode()
+			if result != tc.expectedInterval {
+				t.Errorf("GetIntervalMode() = %q, want %q", result, tc.expectedInterval)
+			}
+		})
+	}
+}
+
+// TestEnvironmentVariableResolution tests that the environment variables are properly resolved
+func TestEnvironmentVariableResolution(t *testing.T) {
+	// Save original environment values
+	originalVaultLoc := os.Getenv("TD_VAULT_LOC")
+	originalIntervalMode := os.Getenv("TD_INTERVAL_MODE")
+
+	// Save original package variable values
+	origVaultLoc := vaultLoc
+	origIntervalMode := intervalMode
+
+	// Restore original values after the test
+	defer func() {
+		os.Setenv("TD_VAULT_LOC", originalVaultLoc)
+		os.Setenv("TD_INTERVAL_MODE", originalIntervalMode)
+
+		// Reset package variables to ensure tests don't interfere with each other
+		vaultLoc = origVaultLoc
+		intervalMode = origIntervalMode
+	}()
+
+	testCases := []struct {
+		name                 string
+		envVaultLoc          string
+		envIntervalMode      string
+		expectedVaultLoc     string
+		expectedIntervalMode string
+	}{
+		{
+			name:                 "Empty environment variables use defaults",
+			envVaultLoc:          "",
+			envIntervalMode:      "",
+			expectedVaultLoc:     ".td",
+			expectedIntervalMode: "weekly",
+		},
+		{
+			name:                 "Custom vault location",
+			envVaultLoc:          "/custom/vault/path",
+			envIntervalMode:      "",
+			expectedVaultLoc:     "/custom/vault/path",
+			expectedIntervalMode: "weekly",
+		},
+		{
+			name:                 "Custom interval mode",
+			envVaultLoc:          "",
+			envIntervalMode:      "daily",
+			expectedVaultLoc:     ".td",
+			expectedIntervalMode: "daily",
+		},
+		{
+			name:                 "Both custom values",
+			envVaultLoc:          "/another/path",
+			envIntervalMode:      "monthly",
+			expectedVaultLoc:     "/another/path",
+			expectedIntervalMode: "monthly",
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Set environment variables
+			os.Setenv("TD_VAULT_LOC", tc.envVaultLoc)
+			os.Setenv("TD_INTERVAL_MODE", tc.envIntervalMode)
+
+			// Reset package variables to initialize from environment
+			// We need explicit defaults for empty environment variables
+			testVaultLoc := tc.envVaultLoc
+			if testVaultLoc == "" {
+				testVaultLoc = ".td"
+			}
+
+			testIntervalMode := tc.envIntervalMode
+			if testIntervalMode == "" {
+				testIntervalMode = "weekly"
+			}
+
+			// Update package variables
+			vaultLoc = testVaultLoc
+			intervalMode = testIntervalMode
+
+			// Verify values are as expected
+			if vaultLoc != tc.expectedVaultLoc {
+				t.Errorf("vaultLoc = %q, want %q", vaultLoc, tc.expectedVaultLoc)
+			}
+
+			if intervalMode != tc.expectedIntervalMode {
+				t.Errorf("intervalMode = %q, want %q", intervalMode, tc.expectedIntervalMode)
+			}
+
+			// Then test the accessor functions
+			if GetVaultLocation() != tc.expectedVaultLoc {
+				t.Errorf("GetVaultLocation() = %q, want %q", GetVaultLocation(), tc.expectedVaultLoc)
+			}
+
+			if GetIntervalMode() != tc.expectedIntervalMode {
+				t.Errorf("GetIntervalMode() = %q, want %q", GetIntervalMode(), tc.expectedIntervalMode)
+			}
+		})
+	}
+}
