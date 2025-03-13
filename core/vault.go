@@ -357,3 +357,20 @@ func containsLine(filename string, searchLine string) (int, error) {
 
 	return 0, nil
 }
+
+// GetVaultLocation returns the configured vault location
+func GetVaultLocation() string {
+	return vaultLoc
+}
+
+// GetIntervalMode returns the configured interval mode
+func GetIntervalMode() string {
+	return intervalMode
+}
+
+// ResetForTest allows test code to reset the package variables
+// This should only be used in tests, not in production code
+func ResetForTest(newVaultLoc, newIntervalMode string) {
+	vaultLoc = newVaultLoc
+	intervalMode = newIntervalMode
+}
