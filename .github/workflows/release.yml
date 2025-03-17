@@ -41,7 +41,7 @@ jobs:
       should_release: ${{ steps.check_release.outputs.should_release }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Extract version
         id: extract_version
