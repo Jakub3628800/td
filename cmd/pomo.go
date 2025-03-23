@@ -22,8 +22,23 @@ var pomoCmd = &cobra.Command{
 	Short: "Start a Pomodoro timer",
 	Long:  `Start a Pomodoro timer for focused work sessions. Default duration is 25 minutes.`,
 	Run: func(_ *cobra.Command, _ []string) {
+		// Validate duration
+		if duration <= 0 {
+			fmt.Println("Error: Duration must be greater than 0 minutes")
+			os.Exit(1)
+		}
+
 		m := initialPomoModel()
-		if _, err := tea.NewProgram(m).Run(); err != nil {
+		p := tea.NewProgram(m)
+
+		// Handle interrupts gracefully
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Println("Program panicked:", r)
+			}
+		}()
+
+		if _, err := p.Run(); err != nil {
 			fmt.Println("Error running program:", err)
 			os.Exit(1)
 		}
@@ -43,6 +58,7 @@ const (
 var helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
 
 type tickMsg time.Time
+type doneMsg struct{}
 
 type pomoModel struct {
 	progress  progress.Model
@@ -51,6 +67,7 @@ type pomoModel struct {
 	elapsed   time.Duration
 	isPaused  bool
 	pauseTime time.Time
+	done      bool
 }
 
 func initialPomoModel() pomoModel {
@@ -62,11 +79,11 @@ func initialPomoModel() pomoModel {
 		duration: time.Duration(duration) * time.Minute,
 		start:    time.Now(),
 		isPaused: false,
+		done:     false,
 	}
 }
 
 func (m pomoModel) Init() tea.Cmd {
-	// core.PlayMusic()
 	return tickCmd()
 }
 
@@ -74,7 +91,7 @@ func (m pomoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "q":
+		case "q", "ctrl+c":
 			// Record the session even when cancelled
 			recordPomoSession(duration, "cancelled")
 			return m, tea.Quit
@@ -103,18 +120,39 @@ func (m pomoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		elapsed := time.Since(m.start) - m.elapsed
 		if elapsed >= m.duration {
-			core.SendNotification(fmt.Sprintf("pomo session %dm done", duration), false)
-			core.PauseMusic()
+			if !m.done {
+				m.done = true
 
-			// Record the completed session
-			recordPomoSession(duration, "completed")
+				// Ensure completion is at 100%
+				progressCmd := m.progress.SetPercent(1.0)
 
+				// Separate goroutine for notification so it doesn't block UI
+				go func() {
+					// Send notification with original text format
+					core.SendNotification(fmt.Sprintf("pomo session %dm done", duration), false)
+					// Try to pause music but don't worry if it fails
+					core.PauseMusic()
+					// Record the completed session
+					recordPomoSession(duration, "completed")
+				}()
+
+				// Give a small delay before quitting to allow notification to be seen
+				return m, tea.Sequence(
+					progressCmd,
+					tea.Tick(time.Millisecond*500, func(_ time.Time) tea.Msg {
+						return doneMsg{}
+					}),
+				)
+			}
 			return m, tea.Quit
 		}
 
 		percentage := float64(elapsed) / float64(m.duration)
 		progressCmd := m.progress.SetPercent(percentage)
 		return m, tea.Batch(tickCmd(), progressCmd)
+
+	case doneMsg:
+		return m, tea.Quit
 
 	case progress.FrameMsg:
 		progressModel, cmd := m.progress.Update(msg)
@@ -145,6 +183,8 @@ func (m pomoModel) View() string {
 	status := ""
 	if m.isPaused {
 		status = "(Paused)"
+	} else if m.done {
+		status = "(Completed!)"
 	}
 
 	return "\n" +
@@ -190,8 +230,18 @@ func recordPomoSession(durationMinutes int, status string) {
 		return
 	}
 
+	// Create file if it doesn't exist to ensure we can write to it
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		file, err := os.Create(filename)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error creating file: %v\n", err)
+			return
+		}
+		file.Close()
+	}
+
 	// Open the file for appending
-	file, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	file, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0600)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error opening file: %v\n", err)
 		return

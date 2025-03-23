@@ -11,9 +11,17 @@ func SendNotification(msg string, silent bool) {
 		fmt.Println(msg)
 		fmt.Println()
 	}
-	err := exec.Command("notify-send", msg).Run()
+
+	// Only use notify-send for notifications (Linux)
+	cmd := exec.Command("notify-send", msg)
+
+	// Try to send notification but don't crash if it fails
+	err := cmd.Run()
 	if err != nil {
-		log.Fatal(err)
+		// Log the error but don't terminate
+		log.Printf("Failed to send notification: %v", err)
+		// Make sure the message is still visible in the terminal
+		fmt.Printf("\n%s\n", msg)
 	}
 }
 
@@ -26,8 +34,17 @@ func PlayMusic() {
 }
 
 func execPlayerctl(subcmd string) {
+	// Check if playerctl exists first
+	checkCmd := exec.Command("which", "playerctl")
+	if err := checkCmd.Run(); err != nil {
+		// playerctl is not installed or not in PATH, just log and return
+		log.Printf("playerctl not found, media control unavailable")
+		return
+	}
+
 	err := exec.Command("playerctl", subcmd).Run()
 	if err != nil {
-		log.Fatal(err)
+		// Don't crash if playerctl fails, just log it
+		log.Printf("Failed to control media player: %v", err)
 	}
 }

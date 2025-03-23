@@ -228,7 +228,17 @@ func OpenEditor(date time.Time, lineNumber int, copyPrevious bool) error {
 	// Create the file if it doesn't exist
 	if !fileExists(filename) {
 		var content string
-		if copyPrevious || copyPreviousEnv {
+
+		// Check if template file exists and use it as a base
+		if fileExists(templateFile()) && !copyPrevious && !copyPreviousEnv {
+			// Read template content
+			templateContent, err := os.ReadFile(templateFile())
+			if err != nil {
+				return fmt.Errorf("failed to read template file: %w", err)
+			}
+			content = string(templateContent)
+		} else if copyPrevious || copyPreviousEnv {
+			// If copy from previous is requested, use that instead of template
 			prevDate := PreviousDate(date)
 			prevFilename := getFilename(prevDate)
 			if fileExists(prevFilename) {

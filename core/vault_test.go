@@ -349,6 +349,72 @@ func TestOpenEditorWithCopyPrevious(t *testing.T) {
 	}
 }
 
+func TestOpenEditorWithTemplate(t *testing.T) {
+	// Set TD_TEST_MODE environment variable
+	os.Setenv("TD_TEST_MODE", "true")
+	defer os.Unsetenv("TD_TEST_MODE")
+
+	// Create a temporary directory for testing
+	tempDir, err := os.MkdirTemp("", "vault_test_template")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	// Set up the test environment
+	vaultLoc = tempDir
+	intervalMode = "daily"
+	skipWeekend = false
+	templatePath = ".template"
+
+	// Create a template file
+	templateContent := "Template content\n- [ ] Template task\n"
+	templateFilePath := filepath.Join(tempDir, templatePath)
+	err = os.WriteFile(templateFilePath, []byte(templateContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create template file: %v", err)
+	}
+
+	// Test OpenEditor with a new file (should use template)
+	testDate := time.Date(2024, 8, 30, 0, 0, 0, 0, time.UTC)
+	err = OpenEditor(testDate, 1, false)
+	if err != nil {
+		t.Errorf("OpenEditor() error = %v", err)
+	}
+
+	// Verify the new file was created with the template content and the new header
+	filename := getFilename(testDate)
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+
+	expectedContent := GetHeader(testDate) + templateContent
+	if string(content) != expectedContent {
+		t.Errorf("File content = %v, want %v", string(content), expectedContent)
+	}
+
+	// Test that copyPrevious takes precedence over template
+	testDate2 := time.Date(2024, 8, 31, 0, 0, 0, 0, time.UTC)
+	err = OpenEditor(testDate2, 1, true)
+	if err != nil {
+		t.Errorf("OpenEditor() error = %v", err)
+	}
+
+	// Verify the new file was created with the previous day's content and the new header
+	filename2 := getFilename(testDate2)
+	content2, err := os.ReadFile(filename2)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+
+	// It should have the content from the previous day, not the template
+	expectedContent2 := GetHeader(testDate2) + string(content)
+	if string(content2) != expectedContent2 {
+		t.Errorf("File content = %v, want %v", string(content2), expectedContent2)
+	}
+}
+
 func TestGetVaultLocationAndIntervalMode(t *testing.T) {
 	// Save original package variable values
 	origVaultLoc := vaultLoc
