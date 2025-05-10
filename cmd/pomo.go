@@ -11,7 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 
-	"td/core"
+	"github.com/Jakub3628800/td/core"
 )
 
 var duration int

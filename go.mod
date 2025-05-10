@@ -1,4 +1,4 @@
-module td
+module github.com/Jakub3628800/td
 
 go 1.23.0
 

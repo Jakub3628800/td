@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"os"
 
-	"td/cmd"
+	"github.com/Jakub3628800/td/cmd"
 )
 
 // These variables are set during build time

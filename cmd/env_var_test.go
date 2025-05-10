@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"td/core"
+	"github.com/Jakub3628800/td/core"
 )
 
 // TestTD_VAULT_LOC_Respect tests that the TD_VAULT_LOC environment variable
