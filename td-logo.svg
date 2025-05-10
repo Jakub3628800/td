@@ -5,13 +5,13 @@
       <stop offset="100%" style="stop-color:#34A853"/>
     </linearGradient>
   </defs>
-  
+
   <!-- Background hexagon -->
   <path d="M50 5 L90 27.5 L90 72.5 L50 95 L10 72.5 L10 27.5 Z" fill="url(#bg-gradient)"/>
-  
+
   <!-- 'td' text -->
   <text x="28" y="65" font-family="Arial, sans-serif" font-size="40" font-weight="bold" fill="white">td</text>
-  
+
   <!-- Markdown-style checkbox text -->
   <text x="55" y="40" font-family="Courier, monospace" font-size="16" fill="#E91E63">-[ ]</text>
 </svg>

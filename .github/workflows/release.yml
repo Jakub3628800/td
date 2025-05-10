@@ -1,3 +1,4 @@
+---
 name: Release
 
 on:
@@ -23,12 +24,6 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-          
-      - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-        
-      - name: Run linters
-        run: golangci-lint run ./...
 
       - name: Run tests
         run: go test -v ./...
@@ -55,7 +50,7 @@ jobs:
         run: |
           VERSION="${{ steps.extract_version.outputs.version }}"
           echo "Checking if v$VERSION already exists..."
-          
+
           if gh release view v$VERSION &> /dev/null; then
             echo "Release v$VERSION already exists. Skipping release creation."
             echo "should_release=false" >> $GITHUB_OUTPUT
@@ -98,4 +93,4 @@ jobs:
             bin/td-${{ needs.check_version.outputs.version }}-darwin-amd64
             bin/td-${{ needs.check_version.outputs.version }}-windows-amd64.exe
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

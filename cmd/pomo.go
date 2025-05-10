@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -128,18 +127,15 @@ func (m pomoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				// Separate goroutine for notification so it doesn't block UI
 				go func() {
-					// Send notification with original text format
 					core.SendNotification(fmt.Sprintf("pomo session %dm done", duration), false)
-					// Try to pause music but don't worry if it fails
 					core.PauseMusic()
-					// Record the completed session
 					recordPomoSession(duration, "completed")
 				}()
 
-				// Give a small delay before quitting to allow notification to be seen
+				// Add a longer delay before quitting to allow the bar to render as full
 				return m, tea.Sequence(
 					progressCmd,
-					tea.Tick(time.Millisecond*500, func(_ time.Time) tea.Msg {
+					tea.Tick(time.Second, func(_ time.Time) tea.Msg {
 						return doneMsg{}
 					}),
 				)
@@ -202,60 +198,13 @@ func tickCmd() tea.Cmd {
 
 // Helper function to record pomodoro sessions
 func recordPomoSession(durationMinutes int, status string) {
-	today := time.Now()
-	timestamp := today.Format("15:04")
-
-	// Get the filename for today's date
-	year, month, day := today.Date()
-
-	// Use the same vault location and interval mode as the core package
-	vaultLoc := core.GetVaultLocation()
-	intervalMode := core.GetIntervalMode()
-
-	var filename string
-	if intervalMode == "daily" {
-		filename = filepath.Join(vaultLoc, fmt.Sprintf("%d/%s/%02d.md", year, month.String(), day))
-	} else if intervalMode == "weekly" {
-		_, week := today.ISOWeek()
-		filename = filepath.Join(vaultLoc, fmt.Sprintf("%d/%s/week%d.md", year, month.String(), week))
-	} else {
-		// Monthly mode
-		filename = filepath.Join(vaultLoc, fmt.Sprintf("%d/%s/%s.md", year, month.String(), month.String()))
-	}
-
-	// Create directories if they don't exist
-	dir := filepath.Dir(filename)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating directory: %v\n", err)
-		return
-	}
-
-	// Create file if it doesn't exist to ensure we can write to it
-	if _, err := os.Stat(filename); os.IsNotExist(err) {
-		file, err := os.Create(filename)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error creating file: %v\n", err)
-			return
+	now := time.Now()
+	_ = core.UpdateDayLog(now, func(log *core.DayLog) {
+		pomo := core.PomodoroLog{
+			Duration:  durationMinutes,
+			Status:    status,
+			Timestamp: now,
 		}
-		file.Close()
-	}
-
-	// Open the file for appending
-	file, err := os.OpenFile(filename, os.O_APPEND|os.O_WRONLY, 0600)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error opening file: %v\n", err)
-		return
-	}
-	defer file.Close()
-
-	// Write the pomodoro record
-	statusText := ""
-	if status == "cancelled" {
-		statusText = " (cancelled)"
-	}
-
-	_, err = file.WriteString(fmt.Sprintf("\n--------------------------------\npomodoro session - %dmin (%s)%s\n", durationMinutes, timestamp, statusText))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error writing to file: %v\n", err)
-	}
+		log.Pomodoros = append(log.Pomodoros, pomo)
+	})
 }

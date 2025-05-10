@@ -53,8 +53,8 @@ func TestTD_VAULT_LOC_Respect(t *testing.T) {
 		{
 			name: "Add command respects TD_VAULT_LOC",
 			cmdSetup: func() error {
-				addCmd.SetArgs([]string{"Test task for add command"})
-				return addCmd.Execute()
+				captureCmd.SetArgs([]string{"Test task for add command"})
+				return captureCmd.Execute()
 			},
 			verifyFunc: func() error {
 				tasks, err := core.LoadLinesWithSelection(time.Now())

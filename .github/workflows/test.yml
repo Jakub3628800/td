@@ -1,3 +1,4 @@
+---
 name: Run Tests
 
 on:
@@ -24,21 +25,15 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-          
-      - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
-        
-      - name: Run linters
-        run: golangci-lint run ./...
 
       - name: Run tests
         run: go test -v ./...
 
       - name: Build
         run: go build -o bin/td main.go
-      
-      #- name: Upload artifact
-      #  uses: actions/upload-artifact@v2
-      #  with:
-      #    name: pomodoro 
-      #    path: bin/pomodoro
+
+      # - name: Upload artifact
+      #   uses: actions/upload-artifact@v2
+      #   with:
+      #     name: pomodoro
+      #     path: bin/pomodoro

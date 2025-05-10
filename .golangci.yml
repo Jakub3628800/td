@@ -1,3 +1,4 @@
+---
 linters:
   enable:
     - errcheck
@@ -34,4 +35,4 @@ issues:
 
 run:
   timeout: 5m
-  tests: true 
+  tests: true

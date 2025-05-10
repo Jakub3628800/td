@@ -13,7 +13,7 @@ import (
 )
 
 var vaultLoc string
-var intervalMode string //daily, weekly or monthly
+var intervalMode string // daily, weekly or monthly
 var templatePath string
 var skipWeekend bool
 
