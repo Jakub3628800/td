@@ -1,7 +1,11 @@
 package cmd
 
 import (
+	"os"
 	"testing"
+	"time"
+
+	"github.com/Jakub3628800/td/core"
 )
 
 func TestPomoIntegration(t *testing.T) {
@@ -22,8 +26,24 @@ func TestRootCommandPomoKey(t *testing.T) {
 }
 
 func TestRecordPomoSession(t *testing.T) {
-	// Skip this test as it requires user interaction
-	t.Skip("Skipping integration test that requires user interaction")
+	dir := t.TempDir()
+	os.Setenv("TD_VAULT_LOC", dir)
+	os.Setenv("TD_INTERVAL_MODE", "daily")
+	core.ResetForTest(dir, "daily")
 
-	// The test body is skipped completely
+	now := time.Now()
+	duration := 5
+	recordPomoSession(duration, "completed")
+
+	log, err := core.LoadDayLog(now)
+	if err != nil {
+		t.Fatalf("LoadDayLog failed: %v", err)
+	}
+	if len(log.Pomodoros) == 0 {
+		t.Fatal("no pomodoro sessions recorded")
+	}
+	p := log.Pomodoros[0]
+	if p.Duration != duration || p.Status != "completed" {
+		t.Errorf("unexpected pomodoro entry: %+v", p)
+	}
 }

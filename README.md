@@ -1,4 +1,4 @@
-# �� td (To-Do ToDay)
+# td (To-Do ToDay)
 
 ![td logo](td-logo.svg)
 
@@ -18,7 +18,7 @@ stores your progress in easy-to-read markdown files.
 
 ### Prerequisites
 
-- Go 1.16 or higher
+- Go 1.23 or higher
 
 ### Installation
 
