@@ -304,15 +304,20 @@ func UpdateTaskStatus(selected bool, taskDescription string, date time.Time) err
 	lines := strings.Split(string(file), "\n")
 
 	lineUpdated := false
+	pattern := regexp.MustCompile(`^([\t ]*)- \[( |x)\] ?(.*)$`)
+
 	for i, line := range lines {
-		if strings.Contains(line, taskDescription) {
-			if selected {
-				lines[i] = strings.Replace(line, "- [ ]", "- [x]", 1)
-			} else {
-				lines[i] = strings.Replace(line, "- [x]", "- [ ]", 1)
+		if matches := pattern.FindStringSubmatch(line); matches != nil {
+			description := matches[3]
+			if strings.TrimSpace(description) == strings.TrimSpace(taskDescription) {
+				status := " "
+				if selected {
+					status = "x"
+				}
+				lines[i] = fmt.Sprintf("%s- [%s] %s", matches[1], status, description)
+				lineUpdated = true
+				break
 			}
-			lineUpdated = true
-			break
 		}
 	}
 

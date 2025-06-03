@@ -184,6 +184,44 @@ func TestUpdateTaskStatus(t *testing.T) {
 	}
 }
 
+func TestUpdateTaskStatusExactMatch(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "vault_test_exact")
+	if err != nil {
+		t.Fatalf("Failed to create temp directory: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	vaultLoc = tempDir
+	intervalMode = "daily"
+
+	testDate := time.Date(2024, 8, 30, 0, 0, 0, 0, time.UTC)
+	filename := getFilename(testDate)
+	initialContent := "- [ ] Task 1\n- [ ] Task 10\n"
+	err = os.MkdirAll(filepath.Dir(filename), 0755)
+	if err != nil {
+		t.Fatalf("Failed to create directories: %v", err)
+	}
+	err = os.WriteFile(filename, []byte(initialContent), 0644)
+	if err != nil {
+		t.Fatalf("Failed to create test file: %v", err)
+	}
+
+	err = UpdateTaskStatus(true, "Task 1", testDate)
+	if err != nil {
+		t.Errorf("UpdateTaskStatus() error = %v", err)
+	}
+
+	content, err := os.ReadFile(filename)
+	if err != nil {
+		t.Fatalf("Failed to read file: %v", err)
+	}
+
+	expectedContent := "- [x] Task 1\n- [ ] Task 10\n"
+	if string(content) != expectedContent {
+		t.Errorf("File content = %v, want %v", string(content), expectedContent)
+	}
+}
+
 func TestNextDateWithWeekendSkipping(t *testing.T) {
 	originalIntervalMode := intervalMode
 	originalSkipWeekend := skipWeekend
