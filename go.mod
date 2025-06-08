@@ -1,6 +1,6 @@
 module github.com/Jakub3628800/td
 
-go 1.23.0
+go 1.24
 
 require (
 	github.com/charmbracelet/bubbles v0.20.0
