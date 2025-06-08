@@ -328,6 +328,7 @@ func notifyDayStart(shutdownTimeMinutes int) {
 
 func scheduleNotification(t time.Time, content string) {
 	datetime := t.Format("2006-01-02 15:04")
+	// #nosec G204 - datetime is controlled format and content is from internal string constants
 	cmd := exec.Command("systemd-run", "--user", "--on-calendar="+datetime, "notify-send", content)
 	_ = cmd.Run() // ignore errors for now
 }
