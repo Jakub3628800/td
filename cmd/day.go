@@ -11,7 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 
-	"github.com/Jakub3628800/td/core"
+	"github.com/Jakub3628800/td/internal/core"
 )
 
 var startDay bool

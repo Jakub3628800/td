@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Jakub3628800/td/core"
+	"github.com/Jakub3628800/td/internal/core"
 )
 
 func TestPomoIntegration(t *testing.T) {
