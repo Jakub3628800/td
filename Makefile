@@ -4,7 +4,10 @@ GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 BUILD_DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS := -ldflags "-X main.Version=$(VERSION) -X main.Commit=$(GIT_COMMIT) -X main.BuildDate=$(BUILD_DATE)"
 
-all: test build
+all: sqlc test build
+
+sqlc:
+	sqlc generate --file sqlc/sqlc.yaml
 
 test:
 	go test -v ./...
