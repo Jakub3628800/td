@@ -199,12 +199,5 @@ func tickCmd() tea.Cmd {
 // Helper function to record pomodoro sessions
 func recordPomoSession(durationMinutes int, status string) {
 	now := time.Now()
-	_ = core.UpdateDayLog(now, func(log *core.DayLog) {
-		pomo := core.PomodoroLog{
-			Duration:  durationMinutes,
-			Status:    status,
-			Timestamp: now,
-		}
-		log.Pomodoros = append(log.Pomodoros, pomo)
-	})
+	_ = core.SavePomodoroLog(durationMinutes, status, now)
 }

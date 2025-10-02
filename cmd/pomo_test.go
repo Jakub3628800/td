@@ -27,9 +27,15 @@ func TestRootCommandPomoKey(t *testing.T) {
 
 func TestRecordPomoSession(t *testing.T) {
 	dir := t.TempDir()
+	origVaultLoc := os.Getenv("TD_VAULT_LOC")
+	defer func() {
+		os.Setenv("TD_VAULT_LOC", origVaultLoc)
+		core.CloseDB()
+	}()
+
 	os.Setenv("TD_VAULT_LOC", dir)
 	os.Setenv("TD_INTERVAL_MODE", "daily")
-	core.ResetForTest(dir, "daily")
+	core.CloseDB()
 
 	now := time.Now()
 	duration := 5

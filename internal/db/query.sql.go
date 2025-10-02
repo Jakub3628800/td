@@ -228,6 +228,27 @@ func (q *Queries) UpdateDayEnd(ctx context.Context, arg UpdateDayEndParams) erro
 	return err
 }
 
+const updateDayStart = `-- name: UpdateDayStart :exec
+UPDATE days SET shutdown_time = ?, day_goal = ?, started_at = ? WHERE date = ?
+`
+
+type UpdateDayStartParams struct {
+	ShutdownTime time.Time
+	DayGoal      string
+	StartedAt    time.Time
+	Date         time.Time
+}
+
+func (q *Queries) UpdateDayStart(ctx context.Context, arg UpdateDayStartParams) error {
+	_, err := q.db.ExecContext(ctx, updateDayStart,
+		arg.ShutdownTime,
+		arg.DayGoal,
+		arg.StartedAt,
+		arg.Date,
+	)
+	return err
+}
+
 const updatePomoActive = `-- name: UpdatePomoActive :exec
 UPDATE metadata SET pomo_active = ? WHERE id = 1
 `

@@ -1,11 +1,11 @@
 package core
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
-	"path/filepath"
+	"context"
+	"database/sql"
 	"time"
+
+	"github.com/Jakub3628800/td/internal/db"
 )
 
 type DayLog struct {
@@ -34,41 +34,181 @@ type PomodoroLog struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-func dayLogFilename(date time.Time) string {
-	year, month, day := date.Date()
-	vaultLoc := GetVaultLocation()
-	return filepath.Join(vaultLoc, fmt.Sprintf("%d/%s/%02d.json", year, month.String(), day))
-}
-
 func LoadDayLog(date time.Time) (DayLog, error) {
-	filename := dayLogFilename(date)
+	queries, err := GetDB()
+	if err != nil {
+		return DayLog{}, err
+	}
+
+	ctx := context.Background()
+	dateOnly := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+
 	var log DayLog
 	log.Date = date.Format("2006-01-02")
-	if b, err := os.ReadFile(filename); err == nil {
-		err = json.Unmarshal(b, &log)
+
+	dayRecord, err := queries.GetDayByDate(ctx, dateOnly)
+	if err != nil && err != sql.ErrNoRows {
 		return log, err
 	}
+
+	if err != sql.ErrNoRows {
+		log.Start = DayStart{
+			ShutdownTime: dayRecord.ShutdownTime,
+			DayGoal:      dayRecord.DayGoal,
+			StartedAt:    dayRecord.StartedAt,
+		}
+
+		if dayRecord.Rating.Valid {
+			log.End.Rating = int(dayRecord.Rating.Int64)
+		}
+		if dayRecord.Reason.Valid {
+			log.End.Reason = dayRecord.Reason.String
+		}
+		if dayRecord.FocusHours.Valid {
+			log.End.FocusHours = dayRecord.FocusHours.Float64
+		}
+		if dayRecord.FinishedAt.Valid {
+			log.End.FinishedAt = dayRecord.FinishedAt.Time
+		}
+	}
+
+	pomodoros, err := queries.ListPomodori(ctx)
+	if err != nil {
+		return log, err
+	}
+
+	for _, pomo := range pomodoros {
+		if pomo.StartTime.Year() == date.Year() && pomo.StartTime.YearDay() == date.YearDay() {
+			status := "cancelled"
+			if pomo.Completed.Valid && pomo.Completed.Bool {
+				status = "completed"
+			}
+			log.Pomodoros = append(log.Pomodoros, PomodoroLog{
+				Duration:  int(pomo.DurationMinutes),
+				Status:    status,
+				Timestamp: pomo.StartTime,
+			})
+		}
+	}
+
 	return log, nil
 }
 
-func SaveDayLog(date time.Time, log DayLog) error {
-	filename := dayLogFilename(date)
-	dir := filepath.Dir(filename)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return err
-	}
-	b, err := json.MarshalIndent(log, "", "  ")
+func SaveDayStart(date time.Time, start DayStart) error {
+	queries, err := GetDB()
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filename, b, 0600)
+
+	ctx := context.Background()
+	dateOnly := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+
+	_, err = queries.GetDayByDate(ctx, dateOnly)
+	if err == sql.ErrNoRows {
+		_, err = queries.CreateDay(ctx, db.CreateDayParams{
+			Date:         dateOnly,
+			ShutdownTime: start.ShutdownTime,
+			DayGoal:      start.DayGoal,
+			StartedAt:    start.StartedAt,
+		})
+		return err
+	} else if err != nil {
+		return err
+	}
+
+	return queries.UpdateDayStart(ctx, db.UpdateDayStartParams{
+		ShutdownTime: start.ShutdownTime,
+		DayGoal:      start.DayGoal,
+		StartedAt:    start.StartedAt,
+		Date:         dateOnly,
+	})
+}
+
+func SaveDayEnd(date time.Time, end DayEnd) error {
+	queries, err := GetDB()
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	dateOnly := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+
+	return queries.UpdateDayEnd(ctx, db.UpdateDayEndParams{
+		Rating:     sql.NullInt64{Int64: int64(end.Rating), Valid: true},
+		Reason:     sql.NullString{String: end.Reason, Valid: end.Reason != ""},
+		FocusHours: sql.NullFloat64{Float64: end.FocusHours, Valid: true},
+		FinishedAt: sql.NullTime{Time: end.FinishedAt, Valid: !end.FinishedAt.IsZero()},
+		Date:       dateOnly,
+	})
 }
 
 func UpdateDayLog(date time.Time, updateFn func(*DayLog)) error {
+	queries, err := GetDB()
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	dateOnly := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+
 	log, err := LoadDayLog(date)
 	if err != nil {
 		return err
 	}
 	updateFn(&log)
-	return SaveDayLog(date, log)
+
+	_, err = queries.GetDayByDate(ctx, dateOnly)
+	dayExists := err == nil
+
+	if !log.Start.StartedAt.IsZero() {
+		if !dayExists {
+			if err := SaveDayStart(date, log.Start); err != nil {
+				return err
+			}
+		} else {
+			err := queries.UpdateDayStart(ctx, db.UpdateDayStartParams{
+				ShutdownTime: log.Start.ShutdownTime,
+				DayGoal:      log.Start.DayGoal,
+				StartedAt:    log.Start.StartedAt,
+				Date:         dateOnly,
+			})
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	if !log.End.FinishedAt.IsZero() {
+		if dayExists {
+			if err := SaveDayEnd(date, log.End); err != nil {
+				return err
+			}
+		}
+	}
+
+	for _, pomo := range log.Pomodoros {
+		if err := SavePomodoroLog(pomo.Duration, pomo.Status, pomo.Timestamp); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func SavePomodoroLog(duration int, status string, timestamp time.Time) error {
+	queries, err := GetDB()
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	completed := status == "completed"
+
+	_, err = queries.InsertPomodoro(ctx, db.InsertPomodoroParams{
+		StartTime:       timestamp,
+		EndTime:         sql.NullTime{},
+		DurationMinutes: int64(duration),
+		Completed:       sql.NullBool{Bool: completed, Valid: true},
+	})
+	return err
 }
