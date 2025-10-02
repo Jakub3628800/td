@@ -2,17 +2,17 @@
 
 ![td logo](td-logo.svg)
 
-To-Do ToDay is a simple, efficient Text User Interface (TUI) app for tracking tasks
-with a focus on daily workflow. Seamlessly add and check off tasks while the backend
-stores your progress in easy-to-read markdown files.
+To-Do ToDay is a simple, efficient Text User Interface (TUI) app for tracking daily productivity
+with a focus on day logging and pomodoro sessions. Uses the Collins Score methodology to track
+daily well-being and productivity with SQLite database storage.
 
 ## 🌟 Features
 
-- 📝 Quick task addition and management
-- ✅ Simple checkbox-style task completion
-- 📁 Markdown file storage for easy version control and portability
-- 📆 Daily, weekly, and monthly view options
+- 📊 Daily productivity tracking with Collins Score methodology
+- 🍅 Pomodoro timer with session recording
+- 🗃️ SQLite database storage for reliable data persistence
 - 🖥️ Clean and intuitive TUI for distraction-free productivity
+- 📈 Day ratings, goals, and focus time tracking
 
 ## 🚀 Getting Started
 
@@ -48,22 +48,28 @@ td --help
 
 ### Common Commands
 
-- Add a task:
+- Start your day (set shutdown time and daily goal):
 
   ```bash
-  td add "Complete project proposal"
+  td day --start
   ```
 
-- List tasks:
+- End your day (rate your day and record focus hours):
 
   ```bash
-  td list
+  td day --end
   ```
 
 - Start a Pomodoro session:
 
   ```bash
   td pomo
+  ```
+
+- Default command shows day interface:
+
+  ```bash
+  td
   ```
 
 ## 🛠️ Development

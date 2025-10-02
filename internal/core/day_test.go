@@ -3,7 +3,6 @@ package core
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 )
@@ -49,19 +48,24 @@ func UnmarshalDayLog(b []byte, log *DayLog) error {
 
 func TestDayLog_FileOps(t *testing.T) {
 	dir := t.TempDir()
+	origVaultLoc := os.Getenv("TD_VAULT_LOC")
+	defer func() {
+		os.Setenv("TD_VAULT_LOC", origVaultLoc)
+		CloseDB()
+	}()
+
 	os.Setenv("TD_VAULT_LOC", dir)
 	os.Setenv("TD_INTERVAL_MODE", "daily")
+	CloseDB()
+
 	now := time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC)
-	log := DayLog{
-		Date: "2025-05-10",
-		Start: DayStart{
-			ShutdownTime: now,
-			DayGoal:      "Goal",
-			StartedAt:    now,
-		},
+	start := DayStart{
+		ShutdownTime: now,
+		DayGoal:      "Goal",
+		StartedAt:    now,
 	}
-	if err := SaveDayLog(now, log); err != nil {
-		t.Fatalf("SaveDayLog failed: %v", err)
+	if err := SaveDayStart(now, start); err != nil {
+		t.Fatalf("SaveDayStart failed: %v", err)
 	}
 	loaded, err := LoadDayLog(now)
 	if err != nil {
@@ -74,14 +78,28 @@ func TestDayLog_FileOps(t *testing.T) {
 
 func TestDayLog_Update(t *testing.T) {
 	dir := t.TempDir()
+	origVaultLoc := os.Getenv("TD_VAULT_LOC")
+	defer func() {
+		os.Setenv("TD_VAULT_LOC", origVaultLoc)
+		CloseDB()
+	}()
+
 	os.Setenv("TD_VAULT_LOC", dir)
 	os.Setenv("TD_INTERVAL_MODE", "daily")
-	now := time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC)
-	if err := SaveDayLog(now, DayLog{Date: "2025-05-10"}); err != nil {
-		t.Fatalf("SaveDayLog failed: %v", err)
+	CloseDB()
+
+	now := time.Date(2025, 5, 11, 12, 0, 0, 0, time.UTC)
+	start := DayStart{
+		ShutdownTime: now,
+		DayGoal:      "Original",
+		StartedAt:    now,
+	}
+	if err := SaveDayStart(now, start); err != nil {
+		t.Fatalf("SaveDayStart failed: %v", err)
 	}
 	err := UpdateDayLog(now, func(log *DayLog) {
 		log.Start.DayGoal = "Updated"
+		log.Start.StartedAt = now
 	})
 	if err != nil {
 		t.Fatalf("UpdateDayLog failed: %v", err)
@@ -92,39 +110,33 @@ func TestDayLog_Update(t *testing.T) {
 	}
 }
 
-func TestPomoSessionWritesToDailyJson(t *testing.T) {
+func TestPomoSessionWritesToDatabase(t *testing.T) {
 	dir := t.TempDir()
+	origVaultLoc := os.Getenv("TD_VAULT_LOC")
+	defer func() {
+		os.Setenv("TD_VAULT_LOC", origVaultLoc)
+		CloseDB()
+	}()
+
 	os.Setenv("TD_VAULT_LOC", dir)
 	os.Setenv("TD_INTERVAL_MODE", "weekly") // Should be ignored for day log
-	now := time.Date(2025, 5, 10, 19, 44, 0, 0, time.UTC)
-	ResetForTest(dir, "weekly")
+	CloseDB()
+
+	now := time.Date(2025, 5, 12, 19, 44, 0, 0, time.UTC)
 
 	// Record a pomodoro session
 	dur := 1
 	status := "completed"
-	err := UpdateDayLog(now, func(log *DayLog) {
-		pomo := PomodoroLog{
-			Duration:  dur,
-			Status:    status,
-			Timestamp: now,
-		}
-		log.Pomodoros = append(log.Pomodoros, pomo)
-	})
-	if err != nil {
-		t.Fatalf("UpdateDayLog failed: %v", err)
+	if err := SavePomodoroLog(dur, status, now); err != nil {
+		t.Fatalf("SavePomodoroLog failed: %v", err)
 	}
 
-	// Check that the daily JSON file exists and contains the pomodoro
-	file := filepath.Join(dir, "2025", "May", "10.json")
-	b, err := os.ReadFile(file)
+	// Check that the pomodoro was recorded in the database
+	loaded, err := LoadDayLog(now)
 	if err != nil {
-		t.Fatalf("Expected daily JSON file not found: %v", err)
+		t.Fatalf("LoadDayLog failed: %v", err)
 	}
-	var log DayLog
-	if err := json.Unmarshal(b, &log); err != nil {
-		t.Fatalf("Failed to unmarshal daily log: %v", err)
-	}
-	if len(log.Pomodoros) == 0 || log.Pomodoros[0].Duration != dur || log.Pomodoros[0].Status != status {
-		t.Errorf("Pomodoro session not recorded correctly in daily JSON file: %+v", log.Pomodoros)
+	if len(loaded.Pomodoros) == 0 || loaded.Pomodoros[0].Duration != dur || loaded.Pomodoros[0].Status != status {
+		t.Errorf("Pomodoro session not recorded correctly in database: %+v", loaded.Pomodoros)
 	}
 }

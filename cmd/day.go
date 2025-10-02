@@ -207,25 +207,23 @@ func saveDayStart(shutdownTimeMinutes int, dayGoal string) {
 	hour := shutdownTimeMinutes / 60
 	minute := shutdownTimeMinutes % 60
 	shutdownTime := time.Date(year, month, day, hour, minute, 0, 0, now.Location())
-	_ = core.UpdateDayLog(now, func(log *core.DayLog) {
-		log.Start = core.DayStart{
-			ShutdownTime: shutdownTime,
-			DayGoal:      dayGoal,
-			StartedAt:    now,
-		}
-	})
+	start := core.DayStart{
+		ShutdownTime: shutdownTime,
+		DayGoal:      dayGoal,
+		StartedAt:    now,
+	}
+	_ = core.SaveDayStart(now, start)
 }
 
 func saveDayEnd(rating int, reason string, focusHours float64) {
 	now := time.Now()
-	_ = core.UpdateDayLog(now, func(log *core.DayLog) {
-		log.End = core.DayEnd{
-			Rating:     rating,
-			Reason:     reason,
-			FocusHours: focusHours,
-			FinishedAt: now,
-		}
-	})
+	end := core.DayEnd{
+		Rating:     rating,
+		Reason:     reason,
+		FocusHours: focusHours,
+		FinishedAt: now,
+	}
+	_ = core.SaveDayEnd(now, end)
 }
 
 func init() {

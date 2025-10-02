@@ -26,6 +26,9 @@ RETURNING *;
 -- name: UpdateDayEnd :exec
 UPDATE days SET rating = ?, reason = ?, focus_hours = ?, finished_at = ? WHERE date = ?;
 
+-- name: UpdateDayStart :exec
+UPDATE days SET shutdown_time = ?, day_goal = ?, started_at = ? WHERE date = ?;
+
 -- name: GetDayByDate :one
 SELECT * FROM days WHERE date = ?;
 

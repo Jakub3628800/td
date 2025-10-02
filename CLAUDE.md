@@ -28,26 +28,28 @@ code in this repository.
 ### Project Structure
 
 - `main.go` - Entry point with version handling and CLI argument rewriting
-- `cmd/` - Cobra CLI command definitions (root, day, add, pomo commands)
-- `core/` - Core business logic split into three main components:
-  - `vault.go` - Task storage and file management (markdown-based)
-  - `day.go` - Day logging system (JSON-based Collins Score tracking)
+- `cmd/` - Cobra CLI command definitions (root, day, pomo commands)
+- `internal/core/` - Core business logic:
+  - `database.go` - SQLite database connection management
+  - `day.go` - Day logging system (SQLite-based Collins Score tracking)
   - `session.go` - Notification and media control utilities
+- `internal/db/` - Generated sqlc database queries and models
+- `sqlc/` - SQL schema and query definitions
 
 ### Key Architectural Patterns
 
-#### Task Storage (vault.go)
+#### Data Storage (SQLite)
 
-- Tasks stored as markdown checkbox format (`- [ ]` / `- [x]`)
-- File organization by date/week/month based on `TD_INTERVAL_MODE`
-- Template system for new file creation
-- Environment-driven configuration (TD\_\* variables)
+- SQLite database with sqlc for type-safe queries
+- Database location: `{vault}/td.db` (where vault defaults to `.td`)
+- Tables: `days`, `pomodori`, `metadata`
+- Environment variable: `TD_VAULT_LOC` controls database location
 
 #### Day Logging (day.go)
 
-- Separate JSON-based tracking for Collins Score methodology
+- SQLite-based tracking for Collins Score methodology
 - Stores daily start/end times, goals, ratings, and pomodoro sessions
-- File structure: `{vault}/{year}/{month}/{day}.json`
+- UPSERT operations for day start/end data
 
 #### CLI Design
 
@@ -59,16 +61,13 @@ code in this repository.
 
 Key environment variables that affect behavior:
 
-- `TD_VAULT_LOC` - Storage location (default: `.td`)
-- `TD_INTERVAL_MODE` - daily/weekly/monthly file organization
-- `TD_TEMPLATE_PATH` - Template file for new entries
-- `TD_SKIP_WEEKEND` - Skip weekends in daily mode
-- `TD_COPY_PREVIOUS` - Copy previous period's content
-- `TD_TEST_MODE` - Disable editor launching during tests
+- `TD_VAULT_LOC` - Database storage location (default: `.td`)
+- `TD_TEST_MODE` - Disable TUI interactions during tests
 
 ### Dependencies
 
 - Cobra for CLI framework
 - Bubble Tea for TUI components
 - Lipgloss for terminal styling
-- Standard library for file operations and JSON handling
+- SQLite for data storage
+- sqlc for type-safe database queries
