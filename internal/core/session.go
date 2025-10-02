@@ -40,21 +40,17 @@ func PlayMusic() {
 }
 
 func execPlayerctl(subcmd string) {
-	// Check if playerctl exists first
 	checkCmd := exec.Command("which", "playerctl")
 	if err := checkCmd.Run(); err != nil {
-		// playerctl is not installed or not in PATH, just log and return
 		log.Printf("playerctl not found, media control unavailable")
 		return
 	}
 
 	err := exec.Command("playerctl", subcmd).Run()
 	if err != nil {
-		// Suppress error output if exit status is 1 (no player running)
 		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
 			return
 		}
-		// Log other errors
 		log.Printf("Failed to control media player: %v", err)
 	}
 }
