@@ -21,7 +21,6 @@ var pomoCmd = &cobra.Command{
 	Short: "Start a Pomodoro timer",
 	Long:  `Start a Pomodoro timer for focused work sessions. Default duration is 25 minutes.`,
 	Run: func(_ *cobra.Command, _ []string) {
-		// Validate duration
 		if duration <= 0 {
 			fmt.Println("Error: Duration must be greater than 0 minutes")
 			os.Exit(1)
@@ -30,7 +29,6 @@ var pomoCmd = &cobra.Command{
 		m := initialPomoModel()
 		p := tea.NewProgram(m)
 
-		// Handle interrupts gracefully
 		defer func() {
 			if r := recover(); r != nil {
 				fmt.Println("Program panicked:", r)
@@ -91,7 +89,6 @@ func (m pomoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
-			// Record the session even when cancelled
 			recordPomoSession(duration, "cancelled")
 			return m, tea.Quit
 		case "p", " ":
@@ -122,17 +119,14 @@ func (m pomoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if !m.done {
 				m.done = true
 
-				// Ensure completion is at 100%
 				progressCmd := m.progress.SetPercent(1.0)
 
-				// Separate goroutine for notification so it doesn't block UI
 				go func() {
 					core.SendNotification(fmt.Sprintf("pomo session %dm done", duration), false)
 					core.PauseMusic()
 					recordPomoSession(duration, "completed")
 				}()
 
-				// Add a longer delay before quitting to allow the bar to render as full
 				return m, tea.Sequence(
 					progressCmd,
 					tea.Tick(time.Second, func(_ time.Time) tea.Msg {
@@ -196,7 +190,6 @@ func tickCmd() tea.Cmd {
 	})
 }
 
-// Helper function to record pomodoro sessions
 func recordPomoSession(durationMinutes int, status string) {
 	now := time.Now()
 	_ = core.SavePomodoroLog(durationMinutes, status, now)

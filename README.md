@@ -6,39 +6,33 @@ To-Do ToDay is a simple, efficient Text User Interface (TUI) app for tracking da
 with a focus on day logging and pomodoro sessions. Uses the Collins Score methodology to track
 daily well-being and productivity with SQLite database storage.
 
-## 🌟 Features
+## Features
 
-- 📊 Daily productivity tracking with Collins Score methodology
-- 🍅 Pomodoro timer with session recording
-- 🗃️ SQLite database storage for reliable data persistence
-- 🖥️ Clean and intuitive TUI for distraction-free productivity
-- 📈 Day ratings, goals, and focus time tracking
+- Daily productivity tracking with Collins Score methodology
+- Pomodoro timer with session recording
+- SQLite database storage for reliable data persistence
+- Clean and intuitive TUI for distraction-free productivity
+- Day ratings, goals, and focus time tracking
 
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Go 1.23 or higher
+## Getting Started
 
 ### Installation
 
-#### From Releases
-
-You can download the latest release from the
-[GitHub Releases page](https://github.com/yourusername/td/releases).
-
-#### From Source
+You need [Go](https://golang.org/dl/) installed on your system. Then install td with:
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/td.git
-cd td
-
-# Build and install
-make install
+go install github.com/Jakub3628800/td@latest
 ```
 
-## 🎯 Usage
+That's it! The `td` command should now be available.
+
+**Troubleshooting**: If `td` command is not found, make sure your Go bin directory is in your PATH:
+
+```bash
+export PATH=$PATH:$(go env GOPATH)/bin
+```
+
+## Usage
 
 To see all available commands:
 
@@ -72,88 +66,29 @@ td --help
   td
   ```
 
-## 🛠️ Development
+## About the Collins Score
 
-### Run Locally
+This technique was developed by Jim Collins, author of "Good to Great," as a method to track and improve daily well-being and productivity.
 
-To run the application without building:
+**How it works:**
 
-```bash
-go run main.go
-```
+- **Morning Setup**: Set your work shutdown time and define what would make today a "+1 day"
+- **Evening Review**: Rate your day from -2 (terrible) to +2 (excellent), explain why, and log your focus hours
+- **Continuous Improvement**: Track patterns over time to optimize your daily routine
 
-### Testing
+td makes this process simple with guided prompts and automatic data storage.
 
-Run the test suite:
-
-```bash
-go test -v ./...
-```
-
-### Version Management
-
-The project uses semantic versioning. To bump the version, use the provided script:
-
-```bash
-# Bump the patch version (0.1.0 -> 0.1.1)
-./scripts/bump-version.sh patch
-
-# Bump the minor version (0.1.0 -> 0.2.0)
-./scripts/bump-version.sh minor
-
-# Bump the major version (0.1.0 -> 1.0.0)
-./scripts/bump-version.sh major
-```
-
-### Release Process
-
-The project has an automated release process:
-
-1. When changes are pushed to the `master` branch, a new release is automatically
-   created.
-2. The release version is determined by the version in `main.go`.
-3. To create a test release without pushing to master, you can manually trigger
-   the "Test Release" workflow
-   from the GitHub Actions tab
-   on GitHub.
-
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 for details.
 
-## 🙏 Acknowledgements
+## Acknowledgements
 
 - [Cobra](https://github.com/spf13/cobra) for CLI interface
 - [Bubble Tea](https://github.com/charmbracelet/bubbletea) for terminal UI framework
+- Jim Collins for the Collins Score methodology
 
 ---
 
-Happy task managing with td! 🎉
-
-The Collins Score
-This technique was developed by Jim Collins, the author of "Good to Great," as a
-method to track and improve daily well-being and productivity. [37:06, 38:03]
-
-How it Works (Original Version):
-
-At the end of each day, rate your day on a scale of -2 to +2: [38:40]
-+2: Excellent day
-+1: Good day
-0: Languishing (just getting by)
--1: Bad day
--2: Very bad day
-Write a sentence or two explaining why you gave that score. [46:50]
-Track the amount of creative or deep work time you had. [38:20]
-
-Modified Version (as discussed in the video for daily use):
-
-In the morning, ask yourself:
-
-What time will I shut down work today? [47:28]
-What do I need to achieve today for it to be a "+1 day"? [47:33]
-At the end of the day (EOD), ask yourself:
-
-How would you rate your day (using the -2 to +2 scale)? [47:42]
-Why would you rate it that way? [47:49]
-How many hours of creative/focused time did you have? [47:56]
+Happy productivity tracking with td!

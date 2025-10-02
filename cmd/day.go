@@ -75,7 +75,7 @@ var dayCmd = &cobra.Command{
 			}
 			return
 		}
-		fmt.Println("🌱 You have already finished work, go touch grass!")
+		fmt.Println("You have already finished work, go touch grass!")
 		fmt.Println("To edit your response, use:")
 		fmt.Println(grayStyle("td --start"))
 		fmt.Println(grayStyle("td --end"))
@@ -182,21 +182,21 @@ var ratingLabels = map[int]string{
 
 func (m dayModel) View() string {
 	if m.askingReason {
-		return "📝 Why would you rate it that way?\n\n" + m.input.View() + "\n\n(Enter to confirm, q to quit)"
+		return "Why would you rate it that way?\n\n" + m.input.View() + "\n\n(Enter to confirm, q to quit)"
 	}
 	if m.askingFocus {
 		color := "#1976d2"
 		style := lipgloss.NewStyle().Foreground(lipgloss.Color(color)).Bold(true)
-		prompt := fmt.Sprintf("🕰️ How many hours of focus time did you have after this? [%s]", style.Render(fmt.Sprintf("%.1f", m.focusHours)))
+		prompt := fmt.Sprintf("How many hours of focus time did you have after this? [%s]", style.Render(fmt.Sprintf("%.1f", m.focusHours)))
 		return prompt + "\n\nUse ↑/↓ or j/k to change, Enter to confirm, q to quit."
 	}
 	color := ratingColors[m.rating]
 	style := lipgloss.NewStyle().Foreground(lipgloss.Color(color)).Bold(true)
-	prompt := fmt.Sprintf("⭐ How would you rate your day [%s]", style.Render(fmt.Sprintf("%d", m.rating)))
+	prompt := fmt.Sprintf("How would you rate your day [%s]", style.Render(fmt.Sprintf("%d", m.rating)))
 
 	s := prompt + "\n\nUse ↑/↓ or j/k to change, Enter to confirm, q to quit."
 	if m.confirmed {
-		s += fmt.Sprintf("\n\n🙌 You rated your day: %d (%s)\n📝 Reason: %s\n🕰️ Focus hours: %.1f", m.rating, ratingLabels[m.rating], m.reason, m.focusHours)
+		s += fmt.Sprintf("\n\nYou rated your day: %d (%s)\nReason: %s\nFocus hours: %.1f", m.rating, ratingLabels[m.rating], m.reason, m.focusHours)
 	}
 	return s
 }
@@ -295,10 +295,10 @@ func (m startDayModel) View() string {
 		hour := m.shutdownTimeMinutes / 60
 		minute := m.shutdownTimeMinutes % 60
 		style := lipgloss.NewStyle().Foreground(lipgloss.Color("#1976d2")).Bold(true)
-		return fmt.Sprintf("🗓️ What time will I shut down work today?\n\n[%s]\n\nUse ↑/↓ or j/k to change, Enter to confirm, q to quit.", style.Render(fmt.Sprintf("%02d:%02d", hour, minute)))
+		return fmt.Sprintf("What time will I shut down work today?\n\n[%s]\n\nUse ↑/↓ or j/k to change, Enter to confirm, q to quit.", style.Render(fmt.Sprintf("%02d:%02d", hour, minute)))
 	}
 	if m.step == 1 {
-		return "📝 What do I need to achieve today for it to be a \"+1 day\"?\n\n" + m.input.View() + "\n\n(Enter to confirm, q to quit)"
+		return "What do I need to achieve today for it to be a \"+1 day\"?\n\n" + m.input.View() + "\n\n(Enter to confirm, q to quit)"
 	}
 	if m.confirmed {
 		hour := m.shutdownTimeMinutes / 60
