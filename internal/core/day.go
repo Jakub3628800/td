@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"database/sql"
+	"strings"
 	"time"
 
 	"github.com/Jakub3628800/td/internal/db"
@@ -187,7 +188,7 @@ func UpdateDayLog(date time.Time, updateFn func(*DayLog)) error {
 	}
 
 	for _, pomo := range log.Pomodoros {
-		if err := SavePomodoroLog(pomo.Duration, pomo.Status, pomo.Timestamp); err != nil {
+		if err := SavePomodoroLog(pomo.Duration, pomo.Status, []string{}, pomo.Timestamp); err != nil {
 			return err
 		}
 	}
@@ -195,7 +196,7 @@ func UpdateDayLog(date time.Time, updateFn func(*DayLog)) error {
 	return nil
 }
 
-func SavePomodoroLog(duration int, status string, timestamp time.Time) error {
+func SavePomodoroLog(duration int, status string, tags []string, timestamp time.Time) error {
 	queries, err := GetDB()
 	if err != nil {
 		return err
@@ -204,11 +205,17 @@ func SavePomodoroLog(duration int, status string, timestamp time.Time) error {
 	ctx := context.Background()
 	completed := status == "completed"
 
+	var tagsStr sql.NullString
+	if len(tags) > 0 {
+		tagsStr = sql.NullString{String: strings.Join(tags, ","), Valid: true}
+	}
+
 	_, err = queries.InsertPomodoro(ctx, db.InsertPomodoroParams{
 		StartTime:       timestamp,
 		EndTime:         sql.NullTime{},
 		DurationMinutes: int64(duration),
 		Completed:       sql.NullBool{Bool: completed, Valid: true},
+		Tags:            tagsStr,
 	})
 	return err
 }

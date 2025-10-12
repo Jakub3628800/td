@@ -15,6 +15,7 @@ import (
 )
 
 var duration int
+var tags []string
 
 var pomoCmd = &cobra.Command{
 	Use:   "pomo",
@@ -23,6 +24,16 @@ var pomoCmd = &cobra.Command{
 	Run: func(_ *cobra.Command, _ []string) {
 		if duration <= 0 {
 			fmt.Println("Error: Duration must be greater than 0 minutes")
+			os.Exit(1)
+		}
+
+		hasRunning, err := core.HasRunningPomodoro()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error checking for running pomodoro: %v\n", err)
+			os.Exit(1)
+		}
+		if hasRunning {
+			fmt.Println("A pomodoro is already running. Please wait for it to finish or use 'td list-pomos' to see active sessions.")
 			os.Exit(1)
 		}
 
@@ -45,6 +56,7 @@ var pomoCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(pomoCmd)
 	pomoCmd.Flags().IntVarP(&duration, "duration", "d", 25, "Duration in minutes")
+	pomoCmd.Flags().StringSliceVarP(&tags, "tag", "t", []string{}, "Add tags to the pomodoro (can be repeated)")
 }
 
 const (
@@ -89,7 +101,7 @@ func (m pomoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
-			recordPomoSession(duration, "cancelled")
+			recordPomoSession(duration, "cancelled", tags)
 			return m, tea.Quit
 		case "p", " ":
 			if m.isPaused {
@@ -124,7 +136,7 @@ func (m pomoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				go func() {
 					core.SendNotification(fmt.Sprintf("pomo session %dm done", duration), false)
 					core.PauseMusic()
-					recordPomoSession(duration, "completed")
+					recordPomoSession(duration, "completed", tags)
 				}()
 
 				return m, tea.Sequence(
@@ -190,7 +202,9 @@ func tickCmd() tea.Cmd {
 	})
 }
 
-func recordPomoSession(durationMinutes int, status string) {
+func recordPomoSession(durationMinutes int, status string, tags []string) {
 	now := time.Now()
-	_ = core.SavePomodoroLog(durationMinutes, status, now)
+	if err := core.SavePomodoroLog(durationMinutes, status, tags, now); err != nil {
+		fmt.Fprintf(os.Stderr, "Error saving pomodoro: %v\n", err)
+	}
 }

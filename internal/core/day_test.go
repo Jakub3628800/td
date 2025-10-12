@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"testing"
@@ -48,13 +49,13 @@ func UnmarshalDayLog(b []byte, log *DayLog) error {
 
 func TestDayLog_FileOps(t *testing.T) {
 	dir := t.TempDir()
-	origVaultLoc := os.Getenv("TD_VAULT_LOC")
+	origDBPath := os.Getenv("TD_DB_PATH")
 	defer func() {
-		os.Setenv("TD_VAULT_LOC", origVaultLoc)
+		os.Setenv("TD_DB_PATH", origDBPath)
 		CloseDB()
 	}()
 
-	os.Setenv("TD_VAULT_LOC", dir)
+	os.Setenv("TD_DB_PATH", dir+"/td.db")
 	os.Setenv("TD_INTERVAL_MODE", "daily")
 	CloseDB()
 
@@ -78,13 +79,13 @@ func TestDayLog_FileOps(t *testing.T) {
 
 func TestDayLog_Update(t *testing.T) {
 	dir := t.TempDir()
-	origVaultLoc := os.Getenv("TD_VAULT_LOC")
+	origDBPath := os.Getenv("TD_DB_PATH")
 	defer func() {
-		os.Setenv("TD_VAULT_LOC", origVaultLoc)
+		os.Setenv("TD_DB_PATH", origDBPath)
 		CloseDB()
 	}()
 
-	os.Setenv("TD_VAULT_LOC", dir)
+	os.Setenv("TD_DB_PATH", dir+"/td.db")
 	os.Setenv("TD_INTERVAL_MODE", "daily")
 	CloseDB()
 
@@ -112,13 +113,13 @@ func TestDayLog_Update(t *testing.T) {
 
 func TestPomoSessionWritesToDatabase(t *testing.T) {
 	dir := t.TempDir()
-	origVaultLoc := os.Getenv("TD_VAULT_LOC")
+	origDBPath := os.Getenv("TD_DB_PATH")
 	defer func() {
-		os.Setenv("TD_VAULT_LOC", origVaultLoc)
+		os.Setenv("TD_DB_PATH", origDBPath)
 		CloseDB()
 	}()
 
-	os.Setenv("TD_VAULT_LOC", dir)
+	os.Setenv("TD_DB_PATH", dir+"/td.db")
 	os.Setenv("TD_INTERVAL_MODE", "weekly") // Should be ignored for day log
 	CloseDB()
 
@@ -127,7 +128,7 @@ func TestPomoSessionWritesToDatabase(t *testing.T) {
 	// Record a pomodoro session
 	dur := 1
 	status := "completed"
-	if err := SavePomodoroLog(dur, status, now); err != nil {
+	if err := SavePomodoroLog(dur, status, []string{}, now); err != nil {
 		t.Fatalf("SavePomodoroLog failed: %v", err)
 	}
 
@@ -139,4 +140,148 @@ func TestPomoSessionWritesToDatabase(t *testing.T) {
 	if len(loaded.Pomodoros) == 0 || loaded.Pomodoros[0].Duration != dur || loaded.Pomodoros[0].Status != status {
 		t.Errorf("Pomodoro session not recorded correctly in database: %+v", loaded.Pomodoros)
 	}
+}
+
+func TestSavePomodoroLogWithTags(t *testing.T) {
+	dir := t.TempDir()
+	origDBPath := os.Getenv("TD_DB_PATH")
+	defer func() {
+		os.Setenv("TD_DB_PATH", origDBPath)
+		CloseDB()
+	}()
+
+	os.Setenv("TD_DB_PATH", dir+"/td.db")
+	CloseDB()
+
+	now := time.Date(2025, 5, 13, 14, 30, 0, 0, time.UTC)
+	tags := []string{"work", "planning", "feature-x"}
+
+	// Save pomodoro with tags
+	err := SavePomodoroLog(25, "completed", tags, now)
+	if err != nil {
+		t.Fatalf("SavePomodoroLog failed: %v", err)
+	}
+
+	// Verify tags were saved by querying database directly
+	queries, err := GetDB()
+	if err != nil {
+		t.Fatalf("GetDB failed: %v", err)
+	}
+
+	pomodoros, err := queries.ListPomodori(ctx())
+	if err != nil {
+		t.Fatalf("ListPomodori failed: %v", err)
+	}
+
+	if len(pomodoros) == 0 {
+		t.Fatal("no pomodoros found")
+	}
+
+	pomo := pomodoros[0]
+	if !pomo.Tags.Valid {
+		t.Fatal("tags should be valid")
+	}
+
+	expectedTags := "work,planning,feature-x"
+	if pomo.Tags.String != expectedTags {
+		t.Errorf("expected tags %q, got %q", expectedTags, pomo.Tags.String)
+	}
+}
+
+func TestSavePomodoroLogWithEmptyTags(t *testing.T) {
+	dir := t.TempDir()
+	origDBPath := os.Getenv("TD_DB_PATH")
+	defer func() {
+		os.Setenv("TD_DB_PATH", origDBPath)
+		CloseDB()
+	}()
+
+	os.Setenv("TD_DB_PATH", dir+"/td.db")
+	CloseDB()
+
+	now := time.Date(2025, 5, 13, 15, 0, 0, 0, time.UTC)
+
+	// Save pomodoro with no tags
+	err := SavePomodoroLog(25, "completed", []string{}, now)
+	if err != nil {
+		t.Fatalf("SavePomodoroLog failed: %v", err)
+	}
+
+	// Verify tags field is null/empty
+	queries, err := GetDB()
+	if err != nil {
+		t.Fatalf("GetDB failed: %v", err)
+	}
+
+	pomodoros, err := queries.ListPomodori(ctx())
+	if err != nil {
+		t.Fatalf("ListPomodori failed: %v", err)
+	}
+
+	if len(pomodoros) == 0 {
+		t.Fatal("no pomodoros found")
+	}
+
+	pomo := pomodoros[0]
+	if pomo.Tags.Valid && pomo.Tags.String != "" {
+		t.Errorf("expected empty/null tags, got %q", pomo.Tags.String)
+	}
+}
+
+func TestSaveDayEnd(t *testing.T) {
+	dir := t.TempDir()
+	origDBPath := os.Getenv("TD_DB_PATH")
+	defer func() {
+		os.Setenv("TD_DB_PATH", origDBPath)
+		CloseDB()
+	}()
+
+	os.Setenv("TD_DB_PATH", dir+"/td.db")
+	CloseDB()
+
+	now := time.Date(2025, 5, 14, 12, 0, 0, 0, time.UTC)
+
+	// First create a day start
+	start := DayStart{
+		ShutdownTime: now.Add(8 * time.Hour),
+		DayGoal:      "Test goal",
+		StartedAt:    now,
+	}
+	err := SaveDayStart(now, start)
+	if err != nil {
+		t.Fatalf("SaveDayStart failed: %v", err)
+	}
+
+	// Save day end
+	endTime := now.Add(9 * time.Hour)
+	end := DayEnd{
+		Rating:     2,
+		Reason:     "Very productive day",
+		FocusHours: 6.5,
+		FinishedAt: endTime,
+	}
+	err = SaveDayEnd(now, end)
+	if err != nil {
+		t.Fatalf("SaveDayEnd failed: %v", err)
+	}
+
+	// Verify day end was saved
+	loaded, err := LoadDayLog(now)
+	if err != nil {
+		t.Fatalf("LoadDayLog failed: %v", err)
+	}
+
+	if loaded.End.Rating != 2 {
+		t.Errorf("expected rating 2, got %d", loaded.End.Rating)
+	}
+	if loaded.End.Reason != "Very productive day" {
+		t.Errorf("expected reason %q, got %q", "Very productive day", loaded.End.Reason)
+	}
+	if loaded.End.FocusHours != 6.5 {
+		t.Errorf("expected focus hours 6.5, got %f", loaded.End.FocusHours)
+	}
+}
+
+func ctx() context.Context {
+	return context.Background()
 }

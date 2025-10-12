@@ -49,7 +49,7 @@ func (q *Queries) CreateDay(ctx context.Context, arg CreateDayParams) (Day, erro
 }
 
 const getActivePomodoro = `-- name: GetActivePomodoro :one
-SELECT id, start_time, end_time, duration_minutes, completed, created_at FROM pomodori WHERE end_time IS NULL ORDER BY start_time DESC LIMIT 1
+SELECT id, start_time, end_time, duration_minutes, completed, tags, created_at FROM pomodori WHERE end_time IS NULL ORDER BY start_time DESC LIMIT 1
 `
 
 func (q *Queries) GetActivePomodoro(ctx context.Context) (Pomodori, error) {
@@ -61,6 +61,7 @@ func (q *Queries) GetActivePomodoro(ctx context.Context) (Pomodori, error) {
 		&i.EndTime,
 		&i.DurationMinutes,
 		&i.Completed,
+		&i.Tags,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -101,9 +102,9 @@ func (q *Queries) GetMetadata(ctx context.Context) (Metadata, error) {
 }
 
 const insertPomodoro = `-- name: InsertPomodoro :one
-INSERT INTO pomodori (start_time, end_time, duration_minutes, completed)
-VALUES (?, ?, ?, ?)
-RETURNING id, start_time, end_time, duration_minutes, completed, created_at
+INSERT INTO pomodori (start_time, end_time, duration_minutes, completed, tags)
+VALUES (?, ?, ?, ?, ?)
+RETURNING id, start_time, end_time, duration_minutes, completed, tags, created_at
 `
 
 type InsertPomodoroParams struct {
@@ -111,6 +112,7 @@ type InsertPomodoroParams struct {
 	EndTime         sql.NullTime
 	DurationMinutes int64
 	Completed       sql.NullBool
+	Tags            sql.NullString
 }
 
 func (q *Queries) InsertPomodoro(ctx context.Context, arg InsertPomodoroParams) (Pomodori, error) {
@@ -119,6 +121,7 @@ func (q *Queries) InsertPomodoro(ctx context.Context, arg InsertPomodoroParams) 
 		arg.EndTime,
 		arg.DurationMinutes,
 		arg.Completed,
+		arg.Tags,
 	)
 	var i Pomodori
 	err := row.Scan(
@@ -127,6 +130,7 @@ func (q *Queries) InsertPomodoro(ctx context.Context, arg InsertPomodoroParams) 
 		&i.EndTime,
 		&i.DurationMinutes,
 		&i.Completed,
+		&i.Tags,
 		&i.CreatedAt,
 	)
 	return i, err
@@ -172,7 +176,7 @@ func (q *Queries) ListDays(ctx context.Context) ([]Day, error) {
 }
 
 const listPomodori = `-- name: ListPomodori :many
-SELECT id, start_time, end_time, duration_minutes, completed, created_at FROM pomodori ORDER BY start_time DESC
+SELECT id, start_time, end_time, duration_minutes, completed, tags, created_at FROM pomodori ORDER BY start_time DESC
 `
 
 func (q *Queries) ListPomodori(ctx context.Context) ([]Pomodori, error) {
@@ -190,6 +194,7 @@ func (q *Queries) ListPomodori(ctx context.Context) ([]Pomodori, error) {
 			&i.EndTime,
 			&i.DurationMinutes,
 			&i.Completed,
+			&i.Tags,
 			&i.CreatedAt,
 		); err != nil {
 			return nil, err

@@ -9,6 +9,7 @@ CREATE TABLE pomodori (
     end_time TIMESTAMP,
     duration_minutes INTEGER NOT NULL,
     completed BOOLEAN DEFAULT FALSE,
+    tags TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

@@ -2,9 +2,10 @@
 
 ![td logo](td-logo.svg)
 
-To-Do ToDay is a simple, efficient Text User Interface (TUI) app for tracking daily productivity
-with a focus on day logging and pomodoro sessions. Uses the Collins Score methodology to track
-daily well-being and productivity with SQLite database storage.
+To-Do ToDay is a simple, efficient Text User Interface (TUI) app for
+tracking daily productivity with a focus on day logging and pomodoro
+sessions. Uses the Collins Score methodology to track daily well-being
+and productivity with SQLite database storage.
 
 ## Features
 
@@ -26,7 +27,8 @@ go install github.com/Jakub3628800/td@latest
 
 That's it! The `td` command should now be available.
 
-**Troubleshooting**: If `td` command is not found, make sure your Go bin directory is in your PATH:
+**Troubleshooting**: If `td` command is not found, make sure your Go bin
+directory is in your PATH:
 
 ```bash
 export PATH=$PATH:$(go env GOPATH)/bin
@@ -68,13 +70,17 @@ td --help
 
 ## About the Collins Score
 
-This technique was developed by Jim Collins, author of "Good to Great," as a method to track and improve daily well-being and productivity.
+This technique was developed by Jim Collins, author of "Good to Great,"
+as a method to track and improve daily well-being and productivity.
 
 **How it works:**
 
-- **Morning Setup**: Set your work shutdown time and define what would make today a "+1 day"
-- **Evening Review**: Rate your day from -2 (terrible) to +2 (excellent), explain why, and log your focus hours
-- **Continuous Improvement**: Track patterns over time to optimize your daily routine
+- **Morning Setup**: Set your work shutdown time and define what would
+  make today a "+1 day"
+- **Evening Review**: Rate your day from -2 (terrible) to +2 (excellent),
+  explain why, and log your focus hours
+- **Continuous Improvement**: Track patterns over time to optimize your
+  daily routine
 
 td makes this process simple with guided prompts and automatic data storage.
 
