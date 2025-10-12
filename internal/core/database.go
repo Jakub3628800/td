@@ -18,13 +18,17 @@ func GetDB() (*db.Queries, error) {
 		return globalQueries, nil
 	}
 
-	vaultLoc := os.Getenv("TD_VAULT_LOC")
-	if vaultLoc == "" {
-		vaultLoc = ".td"
+	dbPath := os.Getenv("TD_DB_PATH")
+	if dbPath == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return nil, err
+		}
+		dbPath = filepath.Join(homeDir, ".local", "share", "td", "td.db")
 	}
-	dbPath := filepath.Join(vaultLoc, "td.db")
 
-	if err := os.MkdirAll(vaultLoc, 0755); err != nil {
+	dbDir := filepath.Dir(dbPath)
+	if err := os.MkdirAll(dbDir, 0755); err != nil {
 		return nil, err
 	}
 
@@ -56,6 +60,7 @@ CREATE TABLE IF NOT EXISTS pomodori (
     end_time TIMESTAMP,
     duration_minutes INTEGER NOT NULL,
     completed BOOLEAN DEFAULT FALSE,
+    tags TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

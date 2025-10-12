@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"os"
 	"testing"
 	"time"
@@ -27,19 +28,19 @@ func TestRootCommandPomoKey(t *testing.T) {
 
 func TestRecordPomoSession(t *testing.T) {
 	dir := t.TempDir()
-	origVaultLoc := os.Getenv("TD_VAULT_LOC")
+	origDBPath := os.Getenv("TD_DB_PATH")
 	defer func() {
-		os.Setenv("TD_VAULT_LOC", origVaultLoc)
+		os.Setenv("TD_DB_PATH", origDBPath)
 		core.CloseDB()
 	}()
 
-	os.Setenv("TD_VAULT_LOC", dir)
+	os.Setenv("TD_DB_PATH", dir+"/td.db")
 	os.Setenv("TD_INTERVAL_MODE", "daily")
 	core.CloseDB()
 
 	now := time.Now()
 	duration := 5
-	recordPomoSession(duration, "completed")
+	recordPomoSession(duration, "completed", []string{})
 
 	log, err := core.LoadDayLog(now)
 	if err != nil {
@@ -51,5 +52,79 @@ func TestRecordPomoSession(t *testing.T) {
 	p := log.Pomodoros[0]
 	if p.Duration != duration || p.Status != "completed" {
 		t.Errorf("unexpected pomodoro entry: %+v", p)
+	}
+}
+
+func TestRecordPomoSessionWithTags(t *testing.T) {
+	dir := t.TempDir()
+	origDBPath := os.Getenv("TD_DB_PATH")
+	defer func() {
+		os.Setenv("TD_DB_PATH", origDBPath)
+		core.CloseDB()
+	}()
+
+	os.Setenv("TD_DB_PATH", dir+"/td.db")
+	core.CloseDB()
+
+	duration := 25
+	tags := []string{"work", "planning", "feature-x"}
+
+	recordPomoSession(duration, "completed", tags)
+
+	// Verify pomodoro was saved with tags
+	queries, err := core.GetDB()
+	if err != nil {
+		t.Fatalf("GetDB failed: %v", err)
+	}
+
+	ctx := context.Background()
+	pomodoros, err := queries.ListPomodori(ctx)
+	if err != nil {
+		t.Fatalf("ListPomodori failed: %v", err)
+	}
+
+	if len(pomodoros) == 0 {
+		t.Fatal("no pomodoro sessions recorded")
+	}
+
+	p := pomodoros[0]
+	if p.DurationMinutes != int64(duration) {
+		t.Errorf("expected duration %d, got %d", duration, p.DurationMinutes)
+	}
+	if !p.Completed.Valid || !p.Completed.Bool {
+		t.Error("expected completed status")
+	}
+	if !p.Tags.Valid || p.Tags.String != "work,planning,feature-x" {
+		t.Errorf("expected tags 'work,planning,feature-x', got %v", p.Tags)
+	}
+}
+
+func TestRecordPomoSessionCancelled(t *testing.T) {
+	dir := t.TempDir()
+	origDBPath := os.Getenv("TD_DB_PATH")
+	defer func() {
+		os.Setenv("TD_DB_PATH", origDBPath)
+		core.CloseDB()
+	}()
+
+	os.Setenv("TD_DB_PATH", dir+"/td.db")
+	core.CloseDB()
+
+	now := time.Now()
+	duration := 25
+
+	recordPomoSession(duration, "cancelled", []string{})
+
+	log, err := core.LoadDayLog(now)
+	if err != nil {
+		t.Fatalf("LoadDayLog failed: %v", err)
+	}
+	if len(log.Pomodoros) == 0 {
+		t.Fatal("no pomodoro sessions recorded")
+	}
+
+	p := log.Pomodoros[0]
+	if p.Status != "cancelled" {
+		t.Errorf("expected status 'cancelled', got %s", p.Status)
 	}
 }

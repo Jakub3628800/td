@@ -5,8 +5,8 @@ SELECT * FROM metadata WHERE id = 1;
 UPDATE metadata SET pomo_active = ? WHERE id = 1;
 
 -- name: InsertPomodoro :one
-INSERT INTO pomodori (start_time, end_time, duration_minutes, completed)
-VALUES (?, ?, ?, ?)
+INSERT INTO pomodori (start_time, end_time, duration_minutes, completed, tags)
+VALUES (?, ?, ?, ?, ?)
 RETURNING *;
 
 -- name: UpdatePomodoroEndTime :exec

@@ -41,9 +41,9 @@ code in this repository.
 #### Data Storage (SQLite)
 
 - SQLite database with sqlc for type-safe queries
-- Database location: `{vault}/td.db` (where vault defaults to `.td`)
+- Database location: `~/.local/share/td/td.db` (follows XDG Base Directory spec)
 - Tables: `days`, `pomodori`, `metadata`
-- Environment variable: `TD_VAULT_LOC` controls database location
+- Environment variable: `TD_DB_PATH` overrides default database path
 
 #### Day Logging (day.go)
 
@@ -61,7 +61,7 @@ code in this repository.
 
 Key environment variables that affect behavior:
 
-- `TD_VAULT_LOC` - Database storage location (default: `.td`)
+- `TD_DB_PATH` - Override default database path (default: `~/.local/share/td/td.db`)
 - `TD_TEST_MODE` - Disable TUI interactions during tests
 
 ### Dependencies

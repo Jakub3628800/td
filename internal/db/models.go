@@ -34,5 +34,6 @@ type Pomodori struct {
 	EndTime         sql.NullTime
 	DurationMinutes int64
 	Completed       sql.NullBool
+	Tags            sql.NullString
 	CreatedAt       sql.NullTime
 }
