@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS spotify_tokens (
     access_token TEXT NOT NULL,
     refresh_token TEXT NOT NULL,
     expires_at TIMESTAMP NOT NULL,
+    default_device_id TEXT,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

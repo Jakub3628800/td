@@ -39,9 +39,10 @@ type Pomodori struct {
 }
 
 type SpotifyToken struct {
-	ID           int64
-	AccessToken  string
-	RefreshToken string
-	ExpiresAt    time.Time
-	UpdatedAt    sql.NullTime
+	ID              int64
+	AccessToken     string
+	RefreshToken    string
+	ExpiresAt       time.Time
+	DefaultDeviceID sql.NullString
+	UpdatedAt       sql.NullTime
 }
