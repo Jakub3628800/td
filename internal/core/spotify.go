@@ -168,6 +168,13 @@ func (s *SpotifyClient) makeAPIRequest(method, endpoint string, body io.Reader) 
 }
 
 func (s *SpotifyClient) Play(uri string, deviceID string) error {
+	if deviceID == "" {
+		defaultDevice, err := s.GetDefaultDevice()
+		if err == nil && defaultDevice != "" {
+			deviceID = defaultDevice
+		}
+	}
+
 	endpoint := "/me/player/play"
 	if deviceID != "" {
 		endpoint += "?device_id=" + deviceID
@@ -199,6 +206,13 @@ func (s *SpotifyClient) Play(uri string, deviceID string) error {
 }
 
 func (s *SpotifyClient) Pause(deviceID string) error {
+	if deviceID == "" {
+		defaultDevice, err := s.GetDefaultDevice()
+		if err == nil && defaultDevice != "" {
+			deviceID = defaultDevice
+		}
+	}
+
 	endpoint := "/me/player/pause"
 	if deviceID != "" {
 		endpoint += "?device_id=" + deviceID
@@ -253,4 +267,29 @@ func (s *SpotifyClient) TransferPlayback(deviceID string, play bool) error {
 	}
 
 	return nil
+}
+
+func (s *SpotifyClient) GetDefaultDevice() (string, error) {
+	ctx := context.Background()
+	tokens, err := s.queries.GetSpotifyTokens(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	if tokens.DefaultDeviceID.Valid {
+		return tokens.DefaultDeviceID.String, nil
+	}
+
+	return "", nil
+}
+
+func (s *SpotifyClient) SetDefaultDevice(deviceID string) error {
+	ctx := context.Background()
+
+	var nullString sql.NullString
+	if deviceID != "" {
+		nullString = sql.NullString{String: deviceID, Valid: true}
+	}
+
+	return s.queries.SetDefaultSpotifyDevice(ctx, nullString)
 }

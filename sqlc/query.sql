@@ -46,3 +46,6 @@ ON CONFLICT(id) DO UPDATE SET
     refresh_token = excluded.refresh_token,
     expires_at = excluded.expires_at,
     updated_at = CURRENT_TIMESTAMP;
+
+-- name: SetDefaultSpotifyDevice :exec
+UPDATE spotify_tokens SET default_device_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1;

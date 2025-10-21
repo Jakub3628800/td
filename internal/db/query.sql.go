@@ -279,7 +279,7 @@ func (q *Queries) UpdatePomodoroEndTime(ctx context.Context, arg UpdatePomodoroE
 }
 
 const getSpotifyTokens = `-- name: GetSpotifyTokens :one
-SELECT id, access_token, refresh_token, expires_at, updated_at FROM spotify_tokens WHERE id = 1
+SELECT id, access_token, refresh_token, expires_at, default_device_id, updated_at FROM spotify_tokens WHERE id = 1
 `
 
 func (q *Queries) GetSpotifyTokens(ctx context.Context) (SpotifyToken, error) {
@@ -290,6 +290,7 @@ func (q *Queries) GetSpotifyTokens(ctx context.Context) (SpotifyToken, error) {
 		&i.AccessToken,
 		&i.RefreshToken,
 		&i.ExpiresAt,
+		&i.DefaultDeviceID,
 		&i.UpdatedAt,
 	)
 	return i, err
@@ -317,5 +318,14 @@ func (q *Queries) UpsertSpotifyTokens(ctx context.Context, arg UpsertSpotifyToke
 		arg.RefreshToken,
 		arg.ExpiresAt,
 	)
+	return err
+}
+
+const setDefaultSpotifyDevice = `-- name: SetDefaultSpotifyDevice :exec
+UPDATE spotify_tokens SET default_device_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1
+`
+
+func (q *Queries) SetDefaultSpotifyDevice(ctx context.Context, defaultDeviceID sql.NullString) error {
+	_, err := q.db.ExecContext(ctx, setDefaultSpotifyDevice, defaultDeviceID)
 	return err
 }

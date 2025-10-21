@@ -116,6 +116,8 @@ var spotifyDevicesCmd = &cobra.Command{
 			return
 		}
 
+		defaultDevice, _ := client.GetDefaultDevice()
+
 		fmt.Println("Available devices:")
 		for _, device := range devices {
 			status := ""
@@ -125,9 +127,54 @@ var spotifyDevicesCmd = &cobra.Command{
 			if device.IsRestricted {
 				status += " (restricted)"
 			}
+			if defaultDevice == device.ID {
+				status += " (default)"
+			}
 
 			fmt.Printf("  [%s] %s - %s%s\n", device.ID, device.Name, device.Type, status)
 		}
+	},
+}
+
+var spotifySetDeviceCmd = &cobra.Command{
+	Use:   "set-device <device-id>",
+	Short: "Set the default Spotify device",
+	Long: `Set the default device for Spotify playback.
+Use 'td spotify devices' to list available devices and their IDs.`,
+	Args: cobra.ExactArgs(1),
+	Run: func(_ *cobra.Command, args []string) {
+		client := getSpotifyClient()
+
+		deviceID := args[0]
+
+		devices, err := client.GetDevices()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error getting devices: %v\n", err)
+			os.Exit(1)
+		}
+
+		found := false
+		var deviceName string
+		for _, device := range devices {
+			if device.ID == deviceID {
+				found = true
+				deviceName = device.Name
+				break
+			}
+		}
+
+		if !found {
+			fmt.Fprintf(os.Stderr, "Error: Device ID '%s' not found\n", deviceID)
+			fmt.Fprintln(os.Stderr, "Use 'td spotify devices' to list available devices")
+			os.Exit(1)
+		}
+
+		if err := client.SetDefaultDevice(deviceID); err != nil {
+			fmt.Fprintf(os.Stderr, "Error setting default device: %v\n", err)
+			os.Exit(1)
+		}
+
+		fmt.Printf("Default device set to: %s (%s)\n", deviceName, deviceID)
 	},
 }
 
@@ -174,6 +221,7 @@ func init() {
 	spotifyCmd.AddCommand(spotifyPlayCmd)
 	spotifyCmd.AddCommand(spotifyPauseCmd)
 	spotifyCmd.AddCommand(spotifyDevicesCmd)
+	spotifyCmd.AddCommand(spotifySetDeviceCmd)
 
 	spotifyPlayCmd.Flags().StringP("device", "d", "", "Device ID to play on")
 	spotifyPauseCmd.Flags().StringP("device", "d", "", "Device ID to pause")
