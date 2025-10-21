@@ -26,11 +26,18 @@ var dayCmd = &cobra.Command{
 	Run: func(_ *cobra.Command, _ []string) {
 		now := time.Now()
 		log, err := core.LoadDayLog(now)
+		if err != nil && !startDay && !endDay {
+			fmt.Fprintf(os.Stderr, "Error loading day log: %v\n", err)
+			os.Exit(1)
+		}
 		if startDay {
 			p := tea.NewProgram(initialStartDayModel())
 			if m, err := p.Run(); err == nil {
 				if final, ok := m.(startDayModel); ok && final.confirmed {
-					saveDayStart(final.shutdownTimeMinutes, final.dayGoal)
+					if err := saveDayStart(final.shutdownTimeMinutes, final.dayGoal); err != nil {
+						fmt.Fprintf(os.Stderr, "Error saving day start: %v\n", err)
+						os.Exit(1)
+					}
 					notifyDayStart(final.shutdownTimeMinutes)
 				}
 			} else {
@@ -42,7 +49,10 @@ var dayCmd = &cobra.Command{
 			p := tea.NewProgram(initialDayModel())
 			if m, err := p.Run(); err == nil {
 				if final, ok := m.(dayModel); ok && final.confirmed {
-					saveDayEnd(final.rating, final.reason, final.focusHours)
+					if err := saveDayEnd(final.rating, final.reason, final.focusHours); err != nil {
+						fmt.Fprintf(os.Stderr, "Error saving day end: %v\n", err)
+						os.Exit(1)
+					}
 				}
 			} else {
 				fmt.Fprintf(os.Stderr, "Error running TUI: %v\n", err)
@@ -55,7 +65,10 @@ var dayCmd = &cobra.Command{
 			p := tea.NewProgram(initialStartDayModel())
 			if m, err := p.Run(); err == nil {
 				if final, ok := m.(startDayModel); ok && final.confirmed {
-					saveDayStart(final.shutdownTimeMinutes, final.dayGoal)
+					if err := saveDayStart(final.shutdownTimeMinutes, final.dayGoal); err != nil {
+						fmt.Fprintf(os.Stderr, "Error saving day start: %v\n", err)
+						os.Exit(1)
+					}
 					notifyDayStart(final.shutdownTimeMinutes)
 				}
 			} else {
@@ -68,7 +81,10 @@ var dayCmd = &cobra.Command{
 			p := tea.NewProgram(initialDayModel())
 			if m, err := p.Run(); err == nil {
 				if final, ok := m.(dayModel); ok && final.confirmed {
-					saveDayEnd(final.rating, final.reason, final.focusHours)
+					if err := saveDayEnd(final.rating, final.reason, final.focusHours); err != nil {
+						fmt.Fprintf(os.Stderr, "Error saving day end: %v\n", err)
+						os.Exit(1)
+					}
 				}
 			} else {
 				fmt.Fprintf(os.Stderr, "Error running TUI: %v\n", err)
@@ -201,7 +217,7 @@ func (m dayModel) View() string {
 	return s
 }
 
-func saveDayStart(shutdownTimeMinutes int, dayGoal string) {
+func saveDayStart(shutdownTimeMinutes int, dayGoal string) error {
 	now := time.Now()
 	year, month, day := now.Date()
 	hour := shutdownTimeMinutes / 60
@@ -212,10 +228,10 @@ func saveDayStart(shutdownTimeMinutes int, dayGoal string) {
 		DayGoal:      dayGoal,
 		StartedAt:    now,
 	}
-	_ = core.SaveDayStart(now, start)
+	return core.SaveDayStart(now, start)
 }
 
-func saveDayEnd(rating int, reason string, focusHours float64) {
+func saveDayEnd(rating int, reason string, focusHours float64) error {
 	now := time.Now()
 	end := core.DayEnd{
 		Rating:     rating,
@@ -223,7 +239,7 @@ func saveDayEnd(rating int, reason string, focusHours float64) {
 		FocusHours: focusHours,
 		FinishedAt: now,
 	}
-	_ = core.SaveDayEnd(now, end)
+	return core.SaveDayEnd(now, end)
 }
 
 func init() {

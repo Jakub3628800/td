@@ -2,6 +2,7 @@ package core
 
 import (
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -22,26 +23,26 @@ func GetDB() (*db.Queries, error) {
 	if dbPath == "" {
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to get home directory: %w", err)
 		}
 		dbPath = filepath.Join(homeDir, ".local", "share", "td", "td.db")
 	}
 
 	dbDir := filepath.Dir(dbPath)
 	if err := os.MkdirAll(dbDir, 0755); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to create database directory '%s': %w\n\nPlease ensure you have write permissions to this location or set TD_DB_PATH to a different location", dbDir, err)
 	}
 
 	database, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open database at '%s': %w", dbPath, err)
 	}
 
 	globalDB = database
 	globalQueries = db.New(database)
 
 	if err := initializeDB(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to initialize database schema: %w\n\nThe database file may be corrupted. Try removing '%s' and running the command again", err, dbPath)
 	}
 
 	return globalQueries, nil
