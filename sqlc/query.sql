@@ -34,3 +34,15 @@ SELECT * FROM days WHERE date = ?;
 
 -- name: ListDays :many
 SELECT * FROM days ORDER BY date DESC;
+
+-- name: GetSpotifyTokens :one
+SELECT * FROM spotify_tokens WHERE id = 1;
+
+-- name: UpsertSpotifyTokens :exec
+INSERT INTO spotify_tokens (id, access_token, refresh_token, expires_at, updated_at)
+VALUES (1, ?, ?, ?, CURRENT_TIMESTAMP)
+ON CONFLICT(id) DO UPDATE SET
+    access_token = excluded.access_token,
+    refresh_token = excluded.refresh_token,
+    expires_at = excluded.expires_at,
+    updated_at = CURRENT_TIMESTAMP;
