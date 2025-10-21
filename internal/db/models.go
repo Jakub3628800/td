@@ -37,3 +37,11 @@ type Pomodori struct {
 	Tags            sql.NullString
 	CreatedAt       sql.NullTime
 }
+
+type SpotifyToken struct {
+	ID           int64
+	AccessToken  string
+	RefreshToken string
+	ExpiresAt    time.Time
+	UpdatedAt    sql.NullTime
+}

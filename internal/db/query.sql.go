@@ -277,3 +277,45 @@ func (q *Queries) UpdatePomodoroEndTime(ctx context.Context, arg UpdatePomodoroE
 	_, err := q.db.ExecContext(ctx, updatePomodoroEndTime, arg.EndTime, arg.Completed, arg.ID)
 	return err
 }
+
+const getSpotifyTokens = `-- name: GetSpotifyTokens :one
+SELECT id, access_token, refresh_token, expires_at, updated_at FROM spotify_tokens WHERE id = 1
+`
+
+func (q *Queries) GetSpotifyTokens(ctx context.Context) (SpotifyToken, error) {
+	row := q.db.QueryRowContext(ctx, getSpotifyTokens)
+	var i SpotifyToken
+	err := row.Scan(
+		&i.ID,
+		&i.AccessToken,
+		&i.RefreshToken,
+		&i.ExpiresAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const upsertSpotifyTokens = `-- name: UpsertSpotifyTokens :exec
+INSERT INTO spotify_tokens (id, access_token, refresh_token, expires_at, updated_at)
+VALUES (1, ?, ?, ?, CURRENT_TIMESTAMP)
+ON CONFLICT(id) DO UPDATE SET
+    access_token = excluded.access_token,
+    refresh_token = excluded.refresh_token,
+    expires_at = excluded.expires_at,
+    updated_at = CURRENT_TIMESTAMP
+`
+
+type UpsertSpotifyTokensParams struct {
+	AccessToken  string
+	RefreshToken string
+	ExpiresAt    time.Time
+}
+
+func (q *Queries) UpsertSpotifyTokens(ctx context.Context, arg UpsertSpotifyTokensParams) error {
+	_, err := q.db.ExecContext(ctx, upsertSpotifyTokens,
+		arg.AccessToken,
+		arg.RefreshToken,
+		arg.ExpiresAt,
+	)
+	return err
+}

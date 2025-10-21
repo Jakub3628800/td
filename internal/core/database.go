@@ -78,11 +78,30 @@ CREATE TABLE IF NOT EXISTS days (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS spotify_tokens (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    access_token TEXT NOT NULL,
+    refresh_token TEXT NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 INSERT OR IGNORE INTO metadata (id, pomo_active) VALUES (1, FALSE);
 `
 
 	_, err := globalDB.Exec(schema)
 	return err
+}
+
+func getQueries() *db.Queries {
+	if globalQueries == nil {
+		queries, err := GetDB()
+		if err != nil {
+			panic(err)
+		}
+		return queries
+	}
+	return globalQueries
 }
 
 func CloseDB() error {
