@@ -2,18 +2,18 @@
 
 ![td logo](td-logo.svg)
 
-To-Do ToDay is a simple, efficient Text User Interface (TUI) app for
-tracking daily productivity with a focus on day logging and pomodoro
-sessions. Uses the Collins Score methodology to track daily well-being
-and productivity with SQLite database storage.
+To-Do ToDay is a simple, efficient tool for tracking pomodoro sessions with
+configuration management. Designed for focused work sessions with session
+recording and SQLite database storage.
 
 ## Features
 
-- Daily productivity tracking with Collins Score methodology
-- Pomodoro timer with session recording
-- SQLite database storage for reliable data persistence
-- Clean and intuitive TUI for distraction-free productivity
-- Day ratings, goals, and focus time tracking
+- ⏱️ Pomodoro timer for focused work sessions
+- 📊 Session recording and history tracking
+- 🏷️ Tag-based session categorization
+- ⚙️ Configuration management
+- 💾 SQLite database storage for reliable data persistence
+- 🔧 Easy-to-use CLI interface
 
 ## Getting Started
 
@@ -44,45 +44,99 @@ td --help
 
 ### Common Commands
 
-- Start your day (set shutdown time and daily goal):
-
-  ```bash
-  td day --start
-  ```
-
-- End your day (rate your day and record focus hours):
-
-  ```bash
-  td day --end
-  ```
-
-- Start a Pomodoro session:
+- Start a Pomodoro session (default 25 minutes):
 
   ```bash
   td pomo
   ```
 
-- Default command shows day interface:
+- Start a custom duration Pomodoro:
 
   ```bash
-  td
+  td pomo -d 10  # 10 minute session
   ```
 
-## About the Collins Score
+- Add tags to a pomodoro:
 
-This technique was developed by Jim Collins, author of "Good to Great,"
-as a method to track and improve daily well-being and productivity.
+  ```bash
+  td pomo -t feature-dev -t refactor
+  ```
 
-**How it works:**
+- List all pomodoro sessions:
 
-- **Morning Setup**: Set your work shutdown time and define what would
-  make today a "+1 day"
-- **Evening Review**: Rate your day from -2 (terrible) to +2 (excellent),
-  explain why, and log your focus hours
-- **Continuous Improvement**: Track patterns over time to optimize your
-  daily routine
+  ```bash
+  td list-pomos
+  ```
 
-td makes this process simple with guided prompts and automatic data storage.
+- View configuration options:
+
+  ```bash
+  td config
+  ```
+
+## Development
+
+### Prerequisites
+
+- Go 1.24 or higher
+- SQLite3
+- Make (for build commands)
+
+### Local Development
+
+Clone the repository and set up local development:
+
+```bash
+git clone https://github.com/Jakub3628800/td.git
+cd td
+make build      # Build the binary to bin/td
+make test       # Run test suite
+make lint       # Run linters
+make all        # Run lint, test, and build
+```
+
+The `.envrc` file will automatically add `./bin` to your PATH when you enter
+the directory (requires [direnv](https://direnv.net/)).
+
+### Publishing a New Version
+
+Follow these steps to publish a new release:
+
+1. **Update the version** in `main.go`:
+   ```go
+   Version = "X.Y.Z"  // Update this constant
+   ```
+
+2. **Commit the version bump**:
+   ```bash
+   git add main.go
+   git commit -m "Bump version to X.Y.Z"
+   git push origin master
+   ```
+
+3. **Create and push a Git tag**:
+   ```bash
+   git tag -a vX.Y.Z -m "Release vX.Y.Z: <description of changes>"
+   git push origin vX.Y.Z
+   ```
+
+4. **Verify the release** (wait a few seconds for Go proxy to cache):
+   ```bash
+   go install github.com/Jakub3628800/td@vX.Y.Z
+   td --version
+   ```
+
+Users can then install the new version with:
+```bash
+go install github.com/Jakub3628800/td@vX.Y.Z
+go install github.com/Jakub3628800/td@latest  # Always gets newest
+```
+
+**Important Notes:**
+- Semantic versioning (MAJOR.MINOR.PATCH)
+- Create annotated tags (`git tag -a`, not `-l`)
+- Version in `main.go` must match the Git tag
+- The Go module proxy caches releases; new versions may take a few seconds to appear
 
 ## License
 
@@ -93,8 +147,9 @@ for details.
 
 - [Cobra](https://github.com/spf13/cobra) for CLI interface
 - [Bubble Tea](https://github.com/charmbracelet/bubbletea) for terminal UI framework
-- Jim Collins for the Collins Score methodology
+- [SQLc](https://sqlc.dev/) for type-safe database queries
+- [Lipgloss](https://github.com/charmbracelet/lipgloss) for terminal styling
 
 ---
 
-Happy productivity tracking with td!
+Happy productivity tracking with td! 🍅
