@@ -210,9 +210,15 @@ func SavePomodoroLog(duration int, status string, tags []string, timestamp time.
 		tagsStr = sql.NullString{String: strings.Join(tags, ","), Valid: true}
 	}
 
+	// Set end_time to now when completing or cancelling, leave NULL for running sessions
+	var endTime sql.NullTime
+	if status == "completed" || status == "cancelled" {
+		endTime = sql.NullTime{Time: time.Now(), Valid: true}
+	}
+
 	_, err = queries.InsertPomodoro(ctx, db.InsertPomodoroParams{
 		StartTime:       timestamp,
-		EndTime:         sql.NullTime{},
+		EndTime:         endTime,
 		DurationMinutes: int64(duration),
 		Completed:       sql.NullBool{Bool: completed, Valid: true},
 		Tags:            tagsStr,

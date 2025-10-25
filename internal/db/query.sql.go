@@ -67,6 +67,17 @@ func (q *Queries) GetActivePomodoro(ctx context.Context) (Pomodori, error) {
 	return i, err
 }
 
+const getConfig = `-- name: GetConfig :one
+SELECT "key", value, updated_at FROM config WHERE key = ?
+`
+
+func (q *Queries) GetConfig(ctx context.Context, key string) (Config, error) {
+	row := q.db.QueryRowContext(ctx, getConfig, key)
+	var i Config
+	err := row.Scan(&i.Key, &i.Value, &i.UpdatedAt)
+	return i, err
+}
+
 const getDayByDate = `-- name: GetDayByDate :one
 SELECT id, date, shutdown_time, day_goal, started_at, rating, reason, focus_hours, finished_at, created_at, updated_at FROM days WHERE date = ?
 `
@@ -134,6 +145,33 @@ func (q *Queries) InsertPomodoro(ctx context.Context, arg InsertPomodoroParams) 
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const listConfig = `-- name: ListConfig :many
+SELECT "key", value, updated_at FROM config ORDER BY key
+`
+
+func (q *Queries) ListConfig(ctx context.Context) ([]Config, error) {
+	rows, err := q.db.QueryContext(ctx, listConfig)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Config
+	for rows.Next() {
+		var i Config
+		if err := rows.Scan(&i.Key, &i.Value, &i.UpdatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listDays = `-- name: ListDays :many
@@ -210,6 +248,24 @@ func (q *Queries) ListPomodori(ctx context.Context) ([]Pomodori, error) {
 	return items, nil
 }
 
+const setConfig = `-- name: SetConfig :exec
+INSERT INTO config (key, value, updated_at)
+VALUES (?, ?, CURRENT_TIMESTAMP)
+ON CONFLICT(key) DO UPDATE SET
+    value = excluded.value,
+    updated_at = CURRENT_TIMESTAMP
+`
+
+type SetConfigParams struct {
+	Key   string
+	Value sql.NullString
+}
+
+func (q *Queries) SetConfig(ctx context.Context, arg SetConfigParams) error {
+	_, err := q.db.ExecContext(ctx, setConfig, arg.Key, arg.Value)
+	return err
+}
+
 const updateDayEnd = `-- name: UpdateDayEnd :exec
 UPDATE days SET rating = ?, reason = ?, focus_hours = ?, finished_at = ? WHERE date = ?
 `
@@ -275,57 +331,5 @@ type UpdatePomodoroEndTimeParams struct {
 
 func (q *Queries) UpdatePomodoroEndTime(ctx context.Context, arg UpdatePomodoroEndTimeParams) error {
 	_, err := q.db.ExecContext(ctx, updatePomodoroEndTime, arg.EndTime, arg.Completed, arg.ID)
-	return err
-}
-
-const getSpotifyTokens = `-- name: GetSpotifyTokens :one
-SELECT id, access_token, refresh_token, expires_at, default_device_id, updated_at FROM spotify_tokens WHERE id = 1
-`
-
-func (q *Queries) GetSpotifyTokens(ctx context.Context) (SpotifyToken, error) {
-	row := q.db.QueryRowContext(ctx, getSpotifyTokens)
-	var i SpotifyToken
-	err := row.Scan(
-		&i.ID,
-		&i.AccessToken,
-		&i.RefreshToken,
-		&i.ExpiresAt,
-		&i.DefaultDeviceID,
-		&i.UpdatedAt,
-	)
-	return i, err
-}
-
-const upsertSpotifyTokens = `-- name: UpsertSpotifyTokens :exec
-INSERT INTO spotify_tokens (id, access_token, refresh_token, expires_at, updated_at)
-VALUES (1, ?, ?, ?, CURRENT_TIMESTAMP)
-ON CONFLICT(id) DO UPDATE SET
-    access_token = excluded.access_token,
-    refresh_token = excluded.refresh_token,
-    expires_at = excluded.expires_at,
-    updated_at = CURRENT_TIMESTAMP
-`
-
-type UpsertSpotifyTokensParams struct {
-	AccessToken  string
-	RefreshToken string
-	ExpiresAt    time.Time
-}
-
-func (q *Queries) UpsertSpotifyTokens(ctx context.Context, arg UpsertSpotifyTokensParams) error {
-	_, err := q.db.ExecContext(ctx, upsertSpotifyTokens,
-		arg.AccessToken,
-		arg.RefreshToken,
-		arg.ExpiresAt,
-	)
-	return err
-}
-
-const setDefaultSpotifyDevice = `-- name: SetDefaultSpotifyDevice :exec
-UPDATE spotify_tokens SET default_device_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = 1
-`
-
-func (q *Queries) SetDefaultSpotifyDevice(ctx context.Context, defaultDeviceID sql.NullString) error {
-	_, err := q.db.ExecContext(ctx, setDefaultSpotifyDevice, defaultDeviceID)
 	return err
 }

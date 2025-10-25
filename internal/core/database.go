@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"database/sql"
 	"os"
 	"path/filepath"
@@ -47,6 +48,64 @@ func GetDB() (*db.Queries, error) {
 	return globalQueries, nil
 }
 
+func migrateDefaultDeviceToConfig() error {
+	// Check if the old spotify_tokens table has the default_device_id column
+	var columnExists bool
+	err := globalDB.QueryRow(`
+		SELECT COUNT(*) > 0
+		FROM pragma_table_info('spotify_tokens')
+		WHERE name = 'default_device_id'
+	`).Scan(&columnExists)
+	if err != nil {
+		return err
+	}
+
+	if !columnExists {
+		return nil // Column doesn't exist, nothing to migrate
+	}
+
+	// Check if there's data in default_device_id
+	var deviceID sql.NullString
+	err = globalDB.QueryRow(`
+		SELECT default_device_id FROM spotify_tokens WHERE id = 1
+	`).Scan(&deviceID)
+	if err != nil && err != sql.ErrNoRows {
+		return err
+	}
+
+	// If there's data, migrate it to config table
+	if err == nil && deviceID.Valid && deviceID.String != "" {
+		queries := getQueries()
+		ctx := context.Background()
+		err = queries.SetConfig(ctx, db.SetConfigParams{
+			Key:   "spotify_default_device",
+			Value: deviceID,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	// Drop the old column (SQLite doesn't support DROP COLUMN directly, so we recreate the table)
+	_, err = globalDB.Exec(`
+		CREATE TABLE IF NOT EXISTS spotify_tokens_new (
+			id INTEGER PRIMARY KEY CHECK (id = 1),
+			access_token TEXT NOT NULL,
+			refresh_token TEXT NOT NULL,
+			expires_at TIMESTAMP NOT NULL,
+			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+		);
+
+		INSERT OR IGNORE INTO spotify_tokens_new
+		SELECT id, access_token, refresh_token, expires_at, updated_at FROM spotify_tokens;
+
+		DROP TABLE IF EXISTS spotify_tokens;
+		ALTER TABLE spotify_tokens_new RENAME TO spotify_tokens;
+	`)
+
+	return err
+}
+
 func initializeDB() error {
 	schema := `
 CREATE TABLE IF NOT EXISTS metadata (
@@ -83,15 +142,28 @@ CREATE TABLE IF NOT EXISTS spotify_tokens (
     access_token TEXT NOT NULL,
     refresh_token TEXT NOT NULL,
     expires_at TIMESTAMP NOT NULL,
-    default_device_id TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS config (
+    key TEXT PRIMARY KEY,
+    value TEXT,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 INSERT OR IGNORE INTO metadata (id, pomo_active) VALUES (1, FALSE);
 `
 
-	_, err := globalDB.Exec(schema)
-	return err
+	if _, err := globalDB.Exec(schema); err != nil {
+		return err
+	}
+
+	// Migration: Move default_device_id from spotify_tokens to config table
+	if err := migrateDefaultDeviceToConfig(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func getQueries() *db.Queries {

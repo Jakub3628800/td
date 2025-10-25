@@ -43,11 +43,31 @@ var pomoCmd = &cobra.Command{
 		defer func() {
 			if r := recover(); r != nil {
 				fmt.Println("Program panicked:", r)
+
+				// Check if there's a running session and cancel it
+				hasRunning, err := core.HasRunningPomodoro()
+				if err == nil && hasRunning {
+					fmt.Println("Cancelling running pomodoro session...")
+					recordPomoSession(duration, "cancelled", tags)
+				}
 			}
 		}()
 
 		if _, err := p.Run(); err != nil {
 			fmt.Println("Error running program:", err)
+
+			// Check if there's a running session and offer to cancel it
+			hasRunning, checkErr := core.HasRunningPomodoro()
+			if checkErr != nil {
+				fmt.Fprintf(os.Stderr, "Error checking for running pomodoro: %v\n", checkErr)
+				os.Exit(1)
+			}
+
+			if hasRunning {
+				fmt.Println("\nA pomodoro session is still running. Cancelling it...")
+				recordPomoSession(duration, "cancelled", tags)
+			}
+
 			os.Exit(1)
 		}
 	},
@@ -135,7 +155,6 @@ func (m pomoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				go func() {
 					core.SendNotification(fmt.Sprintf("pomo session %dm done", duration), false)
-					core.PauseMusic()
 					recordPomoSession(duration, "completed", tags)
 				}()
 
