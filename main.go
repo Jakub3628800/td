@@ -29,11 +29,5 @@ func main() {
 		}
 	}
 
-	// Intercept --start or --end as first argument and rewrite to 'day --start' or 'day --end'
-	if len(os.Args) > 1 && (os.Args[1] == "--start" || os.Args[1] == "--end") {
-		// Insert 'day' as the first argument after the program name
-		os.Args = append([]string{os.Args[0], "day"}, os.Args[1:]...)
-	}
-
 	cmd.Execute()
 }

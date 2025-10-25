@@ -8,11 +8,8 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "td",
-	Short: "A simple, efficient TUI app for tracking tasks",
-	Long:  `To-Do ToDay (td) is a simple, efficient TUI app for tracking tasks with a focus on daily workflow.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		dayCmd.Run(cmd, args)
-	},
+	Short: "A simple, efficient tool for pomodoro tracking",
+	Long:  `To-Do ToDay (td) is a simple tool for tracking pomodoro sessions with configuration management.`,
 }
 
 func Execute() {
