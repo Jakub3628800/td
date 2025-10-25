@@ -2,7 +2,7 @@ package core
 
 import (
 	"context"
-	"time"
+	"database/sql"
 )
 
 func HasRunningPomodoro() (bool, error) {
@@ -12,18 +12,16 @@ func HasRunningPomodoro() (bool, error) {
 	}
 
 	ctx := context.Background()
-	pomodoros, err := queries.ListPomodori(ctx)
+	// Use GetActivePomodoro to check for sessions with end_time IS NULL
+	// This properly identifies sessions that are still running
+	_, err = queries.GetActivePomodoro(ctx)
 	if err != nil {
+		// sql.ErrNoRows means no active sessions
+		if err == sql.ErrNoRows {
+			return false, nil
+		}
 		return false, err
 	}
 
-	now := time.Now()
-	for _, p := range pomodoros {
-		expectedEndTime := p.StartTime.Add(time.Duration(p.DurationMinutes) * time.Minute)
-		if now.Before(expectedEndTime) {
-			return true, nil
-		}
-	}
-
-	return false, nil
+	return true, nil
 }

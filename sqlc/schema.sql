@@ -27,11 +27,8 @@ CREATE TABLE days (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE spotify_tokens (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
-    access_token TEXT NOT NULL,
-    refresh_token TEXT NOT NULL,
-    expires_at TIMESTAMP NOT NULL,
-    default_device_id TEXT,
+CREATE TABLE config (
+    key TEXT PRIMARY KEY,
+    value TEXT,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -9,6 +9,12 @@ import (
 	"time"
 )
 
+type Config struct {
+	Key       string
+	Value     sql.NullString
+	UpdatedAt sql.NullTime
+}
+
 type Day struct {
 	ID           int64
 	Date         time.Time
@@ -36,13 +42,4 @@ type Pomodori struct {
 	Completed       sql.NullBool
 	Tags            sql.NullString
 	CreatedAt       sql.NullTime
-}
-
-type SpotifyToken struct {
-	ID              int64
-	AccessToken     string
-	RefreshToken    string
-	ExpiresAt       time.Time
-	DefaultDeviceID sql.NullString
-	UpdatedAt       sql.NullTime
 }
