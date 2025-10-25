@@ -13,7 +13,7 @@ import (
 // These variables are set during build time
 var (
 	// Version is the current version of the application
-	Version = "0.1.0"
+	Version = "0.2.0"
 	// Commit is the git commit hash of the build
 	Commit = "unknown"
 	// BuildDate is the date when the binary was built
