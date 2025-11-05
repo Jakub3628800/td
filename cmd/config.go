@@ -15,9 +15,33 @@ import (
 
 var configCmd = &cobra.Command{
 	Use:   "config",
-	Short: "Display all configuration options",
-	Long:  `Display all configuration options currently stored in the database.`,
+	Short: "Manage configuration options",
+	Long:  `Manage configuration options stored in the database. Run without subcommands to list all configs.`,
 	Run: func(_ *cobra.Command, _ []string) {
+		listConfig()
+	},
+}
+
+var configSetCmd = &cobra.Command{
+	Use:   "set <key> <value>",
+	Short: "Set a configuration option",
+	Long:  `Set a configuration option. Only predefined config keys are allowed.`,
+	Args:  cobra.ExactArgs(2),
+	Run: func(_ *cobra.Command, args []string) {
+		key := args[0]
+		value := args[1]
+
+		// Validate the key
+		if err := core.ValidateConfigKey(key); err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "\nAllowed configuration keys:\n")
+			for k, desc := range core.AllowedConfigKeys {
+				fmt.Fprintf(os.Stderr, "  %-25s - %s\n", k, desc)
+			}
+			os.Exit(1)
+		}
+
+		// Set the config
 		queries, err := core.GetDB()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error connecting to database: %v\n", err)
@@ -25,19 +49,35 @@ var configCmd = &cobra.Command{
 		}
 
 		ctx := context.Background()
-		configs, err := queries.ListConfig(ctx)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error listing config: %v\n", err)
+		if err := core.SetConfig(ctx, queries, key, value); err != nil {
+			fmt.Fprintf(os.Stderr, "Error setting config: %v\n", err)
 			os.Exit(1)
 		}
 
-		if len(configs) == 0 {
-			fmt.Println("No configuration options set.")
-			return
-		}
-
-		printConfigTable(configs)
+		fmt.Printf("✓ Configuration updated: %s = %s\n", key, value)
 	},
+}
+
+func listConfig() {
+	queries, err := core.GetDB()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error connecting to database: %v\n", err)
+		os.Exit(1)
+	}
+
+	ctx := context.Background()
+	configs, err := queries.ListConfig(ctx)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error listing config: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(configs) == 0 {
+		fmt.Println("No configuration options set.")
+		return
+	}
+
+	printConfigTable(configs)
 }
 
 func printConfigTable(configs []db.Config) {
@@ -102,4 +142,5 @@ func printConfigTable(configs []db.Config) {
 
 func init() {
 	rootCmd.AddCommand(configCmd)
+	configCmd.AddCommand(configSetCmd)
 }

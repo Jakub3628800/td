@@ -176,3 +176,101 @@ func TestSpotifyDefaultDevice(t *testing.T) {
 		t.Errorf("Expected empty device after clear, got '%s'", device)
 	}
 }
+
+func TestValidateConfigKey(t *testing.T) {
+	tests := []struct {
+		name      string
+		key       string
+		wantError bool
+	}{
+		{
+			name:      "valid key - music_control_enabled",
+			key:       "music_control_enabled",
+			wantError: false,
+		},
+		{
+			name:      "valid key - spotify_default_device",
+			key:       "spotify_default_device",
+			wantError: false,
+		},
+		{
+			name:      "invalid key - random",
+			key:       "random_key",
+			wantError: true,
+		},
+		{
+			name:      "invalid key - empty",
+			key:       "",
+			wantError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateConfigKey(tt.key)
+			if tt.wantError && err == nil {
+				t.Errorf("Expected error for key '%s', got nil", tt.key)
+			}
+			if !tt.wantError && err != nil {
+				t.Errorf("Expected no error for key '%s', got: %v", tt.key, err)
+			}
+		})
+	}
+}
+
+func TestIsMusicControlEnabled(t *testing.T) {
+	// Create a temporary database for testing
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "test_music_control.db")
+
+	// Set the test database path
+	originalPath := os.Getenv("TD_DB_PATH")
+	os.Setenv("TD_DB_PATH", dbPath)
+	defer os.Setenv("TD_DB_PATH", originalPath)
+
+	// Reset global state
+	globalDB = nil
+	globalQueries = nil
+	defer CloseDB()
+
+	ctx := context.Background()
+	queries, err := GetDB()
+	if err != nil {
+		t.Fatalf("Failed to get database: %v", err)
+	}
+
+	// Test 1: Config not set, should return false
+	if IsMusicControlEnabled() {
+		t.Error("Expected music control to be disabled when config not set")
+	}
+
+	// Test 2: Set config to "false"
+	err = SetConfig(ctx, queries, "music_control_enabled", "false")
+	if err != nil {
+		t.Fatalf("Failed to set config: %v", err)
+	}
+
+	if IsMusicControlEnabled() {
+		t.Error("Expected music control to be disabled when set to 'false'")
+	}
+
+	// Test 3: Set config to "true"
+	err = SetConfig(ctx, queries, "music_control_enabled", "true")
+	if err != nil {
+		t.Fatalf("Failed to set config: %v", err)
+	}
+
+	if !IsMusicControlEnabled() {
+		t.Error("Expected music control to be enabled when set to 'true'")
+	}
+
+	// Test 4: Set config to something else (should be false)
+	err = SetConfig(ctx, queries, "music_control_enabled", "yes")
+	if err != nil {
+		t.Fatalf("Failed to set config: %v", err)
+	}
+
+	if IsMusicControlEnabled() {
+		t.Error("Expected music control to be disabled when set to 'yes'")
+	}
+}
