@@ -11,7 +11,8 @@ recording and SQLite database storage.
 - ⏱️ Pomodoro timer for focused work sessions
 - 📊 Session recording and history tracking
 - 🏷️ Tag-based session categorization
-- ⚙️ Configuration management
+- ⚙️ Configuration management with validation
+- 🎵 Optional music control integration (play/stop during sessions)
 - 💾 SQLite database storage for reliable data persistence
 - 🔧 Easy-to-use CLI interface
 
@@ -73,6 +74,34 @@ td --help
   ```bash
   td config
   ```
+
+- Set a configuration option:
+
+  ```bash
+  td config set <key> <value>
+  ```
+
+### Configuration Options
+
+The following configuration keys are available:
+
+- **`music_control_enabled`** (values: `true` or `false`): Enable or disable automatic music control during pomodoro sessions. When enabled, music will start playing when a session begins and stop when it ends. Requires [playerctl](https://github.com/altdesktop/playerctl) to be installed.
+
+  ```bash
+  # Enable music control
+  td config set music_control_enabled true
+
+  # Disable music control
+  td config set music_control_enabled false
+  ```
+
+- **`spotify_default_device`**: Default Spotify device ID for playback control.
+
+  ```bash
+  td config set spotify_default_device <device_id>
+  ```
+
+**Note**: If `music_control_enabled` is set to `true` but `playerctl` is not installed, you'll see a warning message when starting a pomodoro session. The session will continue normally without music control.
 
 ## Development
 

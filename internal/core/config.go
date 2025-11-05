@@ -3,9 +3,33 @@ package core
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/Jakub3628800/td/internal/db"
 )
+
+// AllowedConfigKeys defines the config keys that can be set via CLI
+var AllowedConfigKeys = map[string]string{
+	"music_control_enabled": "Enable/disable music control during pomodoro sessions (true/false)",
+	"spotify_default_device": "Default Spotify device ID for playback control",
+}
+
+// ValidateConfigKey checks if a config key is allowed
+func ValidateConfigKey(key string) error {
+	if _, ok := AllowedConfigKeys[key]; !ok {
+		return fmt.Errorf("unknown config key '%s'. Allowed keys: %v", key, getAllowedKeys())
+	}
+	return nil
+}
+
+// getAllowedKeys returns a slice of all allowed config keys
+func getAllowedKeys() []string {
+	keys := make([]string, 0, len(AllowedConfigKeys))
+	for k := range AllowedConfigKeys {
+		keys = append(keys, k)
+	}
+	return keys
+}
 
 // GetConfig retrieves a config value by key
 func GetConfig(ctx context.Context, queries *db.Queries, key string) (string, error) {
@@ -25,6 +49,22 @@ func SetConfig(ctx context.Context, queries *db.Queries, key, value string) erro
 		Key:   key,
 		Value: sql.NullString{String: value, Valid: true},
 	})
+}
+
+// IsMusicControlEnabled checks if music control is enabled in config
+func IsMusicControlEnabled() bool {
+	ctx := context.Background()
+	queries, err := GetDB()
+	if err != nil {
+		return false
+	}
+
+	value, err := GetConfig(ctx, queries, "music_control_enabled")
+	if err != nil {
+		return false
+	}
+
+	return value == "true"
 }
 
 // SpotifyClient wraps Spotify-related configuration

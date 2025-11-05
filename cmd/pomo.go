@@ -48,6 +48,7 @@ var pomoCmd = &cobra.Command{
 				hasRunning, err := core.HasRunningPomodoro()
 				if err == nil && hasRunning {
 					fmt.Println("Cancelling running pomodoro session...")
+					core.StopMusic()
 					recordPomoSession(duration, "cancelled", tags)
 				}
 			}
@@ -65,6 +66,7 @@ var pomoCmd = &cobra.Command{
 
 			if hasRunning {
 				fmt.Println("\nA pomodoro session is still running. Cancelling it...")
+				core.StopMusic()
 				recordPomoSession(duration, "cancelled", tags)
 			}
 
@@ -113,6 +115,8 @@ func initialPomoModel() pomoModel {
 }
 
 func (m pomoModel) Init() tea.Cmd {
+	// Start music when session begins
+	core.PlayMusic()
 	return tickCmd()
 }
 
@@ -121,6 +125,7 @@ func (m pomoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "q", "ctrl+c":
+			core.StopMusic()
 			recordPomoSession(duration, "cancelled", tags)
 			return m, tea.Quit
 		case "p", " ":
@@ -154,6 +159,7 @@ func (m pomoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				progressCmd := m.progress.SetPercent(1.0)
 
 				go func() {
+					core.StopMusic()
 					core.SendNotification(fmt.Sprintf("pomo session %dm done", duration), false)
 					recordPomoSession(duration, "completed", tags)
 				}()
