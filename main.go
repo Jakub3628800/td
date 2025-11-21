@@ -29,5 +29,6 @@ func main() {
 		}
 	}
 
+	cmd.SetVersion(Version)
 	cmd.Execute()
 }

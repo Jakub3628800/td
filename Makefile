@@ -24,4 +24,17 @@ run:
 install: build
 	cp -f bin/td $(INSTALL_PATH)
 
-.PHONY: all build test clean run install
+bump-version:
+	@if [ -z "$(NEW_VERSION)" ]; then \
+		echo "Usage: make bump-version NEW_VERSION=X.Y.Z"; \
+		exit 1; \
+	fi
+	@if ! echo "$(NEW_VERSION)" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$$'; then \
+		echo "Error: Version must be in format X.Y.Z (e.g., 1.2.3)"; \
+		exit 1; \
+	fi
+	@sed -i 's/Version = "[0-9]*\.[0-9]*\.[0-9]*"/Version = "$(NEW_VERSION)"/' main.go
+	@echo "Bumped version to $(NEW_VERSION)"
+	@echo "Don't forget to create a git tag: git tag v$(NEW_VERSION)"
+
+.PHONY: all build test clean run install bump-version
