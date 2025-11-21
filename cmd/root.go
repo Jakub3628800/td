@@ -19,5 +19,9 @@ func Execute() {
 	}
 }
 
+func SetVersion(version string) {
+	Version = version
+}
+
 func init() {
 }
