@@ -16,8 +16,8 @@ import (
 
 var Version string
 
-var updateCmd = &cobra.Command{
-	Use:   "update",
+var selfUpdateCmd = &cobra.Command{
+	Use:   "self-update",
 	Short: "Check for and install updates",
 	Long:  `Check for the latest version of td and optionally update to it.`,
 	Run: func(_ *cobra.Command, _ []string) {
@@ -144,5 +144,5 @@ func performUpdate(version string) {
 }
 
 func init() {
-	rootCmd.AddCommand(updateCmd)
+	rootCmd.AddCommand(selfUpdateCmd)
 }

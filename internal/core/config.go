@@ -4,14 +4,16 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 
 	"github.com/Jakub3628800/td/internal/db"
 )
 
 // AllowedConfigKeys defines the config keys that can be set via CLI
 var AllowedConfigKeys = map[string]string{
-	"music_control_enabled": "Enable/disable music control during pomodoro sessions (true/false)",
-	"spotify_default_device": "Default Spotify device ID for playback control",
+	"music_control_enabled":   "Enable/disable music control during pomodoro sessions (true/false)",
+	"spotify_default_device":  "Default Spotify device ID for playback control",
+	"default_pomo_duration":   "Default duration for pomodoro sessions in minutes (15-60, increment by 5)",
 }
 
 // ValidateConfigKey checks if a config key is allowed
@@ -117,4 +119,26 @@ func (sc *SpotifyClient) SetDefaultDevice(deviceID string) error {
 	}
 
 	return SetConfig(ctx, queries, "spotify_default_device", deviceID)
+}
+
+// GetDefaultPromoDuration retrieves the default pomodoro duration from config
+// Returns 25 as default if not set or invalid
+func GetDefaultPromoDuration() int {
+	ctx := context.Background()
+	queries, err := GetDB()
+	if err != nil {
+		return 25
+	}
+
+	value, err := GetConfig(ctx, queries, "default_pomo_duration")
+	if err != nil || value == "" {
+		return 25
+	}
+
+	duration, err := strconv.Atoi(value)
+	if err != nil || duration < 15 || duration > 60 {
+		return 25
+	}
+
+	return duration
 }
