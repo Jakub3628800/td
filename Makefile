@@ -15,6 +15,11 @@ test:
 build:
 	go build $(LDFLAGS) -o bin/td main.go
 
+build-release:
+	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o bin/td-$(VERSION)-linux-amd64 main.go
+	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o bin/td-$(VERSION)-darwin-amd64 main.go
+	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o bin/td-$(VERSION)-windows-amd64.exe main.go
+
 clean:
 	rm -f bin/td
 
@@ -37,4 +42,4 @@ bump-version:
 	@echo "Bumped version to $(NEW_VERSION)"
 	@echo "Don't forget to create a git tag: git tag v$(NEW_VERSION)"
 
-.PHONY: all build test clean run install bump-version
+.PHONY: all build build-release test clean run install bump-version
