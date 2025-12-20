@@ -18,6 +18,11 @@ SELECT * FROM pomodori WHERE end_time IS NULL ORDER BY start_time DESC LIMIT 1;
 -- name: ListPomodori :many
 SELECT * FROM pomodori ORDER BY start_time DESC;
 
+-- name: ListPomodoriFiltered :many
+SELECT * FROM pomodori
+WHERE start_time >= ? AND start_time < ?
+ORDER BY start_time DESC;
+
 -- name: CreateDay :one
 INSERT INTO days (date, shutdown_time, day_goal, started_at)
 VALUES (?, ?, ?, ?)
