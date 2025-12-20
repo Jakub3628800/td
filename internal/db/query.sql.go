@@ -248,6 +248,48 @@ func (q *Queries) ListPomodori(ctx context.Context) ([]Pomodori, error) {
 	return items, nil
 }
 
+const listPomodoriFiltered = `-- name: ListPomodoriFiltered :many
+SELECT id, start_time, end_time, duration_minutes, completed, tags, created_at FROM pomodori
+WHERE start_time >= ? AND start_time < ?
+ORDER BY start_time DESC
+`
+
+type ListPomodoriFilteredParams struct {
+	StartTime   time.Time
+	StartTime_2 time.Time
+}
+
+func (q *Queries) ListPomodoriFiltered(ctx context.Context, arg ListPomodoriFilteredParams) ([]Pomodori, error) {
+	rows, err := q.db.QueryContext(ctx, listPomodoriFiltered, arg.StartTime, arg.StartTime_2)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Pomodori
+	for rows.Next() {
+		var i Pomodori
+		if err := rows.Scan(
+			&i.ID,
+			&i.StartTime,
+			&i.EndTime,
+			&i.DurationMinutes,
+			&i.Completed,
+			&i.Tags,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const setConfig = `-- name: SetConfig :exec
 INSERT INTO config (key, value, updated_at)
 VALUES (?, ?, CURRENT_TIMESTAMP)

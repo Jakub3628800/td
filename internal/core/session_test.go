@@ -1,10 +1,19 @@
 package core
 
 import (
-	"log"
 	"os/exec"
 	"testing"
 )
+
+// mockExecCommand returns a command that always succeeds without doing anything
+func mockExecCommand(name string, arg ...string) *exec.Cmd {
+	return exec.Command("true")
+}
+
+func init() {
+	// Mock execCommand globally for all tests to prevent playerctl from running
+	execCommand = mockExecCommand
+}
 
 func TestSendNotificationSilent(_ *testing.T) {
 	// Should just print to stdout, no error
@@ -23,12 +32,13 @@ func TestSendNotificationNormal(_ *testing.T) {
 
 func TestPauseMusicAndPlayMusic(_ *testing.T) {
 	// These should not panic or error, even if playerctl is not installed
+	// execCommand is mocked, so no actual playerctl runs
 	PauseMusic()
 	PlayMusic()
 }
 
 func TestExecPlayerctlHandlesMissingBinary(_ *testing.T) {
-	// Temporarily override exec.Command to simulate missing playerctl
+	// Override exec.Command to simulate missing playerctl
 	origCommand := execCommand
 	defer func() { execCommand = origCommand }()
 
@@ -41,15 +51,4 @@ func TestExecPlayerctlHandlesMissingBinary(_ *testing.T) {
 
 	// Should log but not panic
 	execPlayerctl("pause")
-}
-
-// Allow exec.Command to be overridden for testing
-var execCommand = exec.Command
-
-func init() {
-	// Patch exec.Command in session.go to use execCommand variable
-	// This is a hack for testability
-	// In production, execCommand is just exec.Command
-	// In tests, we can override it
-	_ = log.Printf
 }

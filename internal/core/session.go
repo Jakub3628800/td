@@ -7,6 +7,9 @@ import (
 	"strings"
 )
 
+// execCommand is a variable for exec.Command to allow mocking in tests
+var execCommand = exec.Command
+
 func SendNotification(msg string, silent bool) {
 	if silent {
 		fmt.Println(msg)
@@ -50,7 +53,7 @@ func StopMusic() {
 }
 
 func execPlayerctl(subcmd string) {
-	checkCmd := exec.Command("which", "playerctl")
+	checkCmd := execCommand("which", "playerctl")
 	if err := checkCmd.Run(); err != nil {
 		// Only warn if music control is explicitly enabled
 		if IsMusicControlEnabled() {
@@ -61,7 +64,7 @@ func execPlayerctl(subcmd string) {
 		return
 	}
 
-	err := exec.Command("playerctl", subcmd).Run()
+	err := execCommand("playerctl", subcmd).Run()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
 			// Exit code 1 usually means no player is running, which is fine
