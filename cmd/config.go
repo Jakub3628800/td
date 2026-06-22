@@ -5,58 +5,60 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/spf13/cobra"
-
 	"github.com/Jakub3628800/td/internal/core"
 )
 
-var configCmd = &cobra.Command{
-	Use:   "config",
-	Short: "Manage configuration options",
-	Long:  `Configure td settings interactively using a terminal UI.`,
-	Run: func(_ *cobra.Command, _ []string) {
+var configHelp = `Manage configuration options.
+
+Usage:
+  td config
+  td config set <key> <value>
+`
+
+func runConfigCommand(args []string) error {
+	if len(args) == 0 {
 		runConfigTUI()
-	},
+		return nil
+	}
+
+	switch args[0] {
+	case "-h", "--help", "help":
+		fmt.Print(configHelp)
+		return nil
+	case "set":
+		return runConfigSet(args[1:])
+	default:
+		return fmt.Errorf("unknown config command %q\n\n%s", args[0], configHelp)
+	}
 }
 
-var configSetCmd = &cobra.Command{
-	Use:   "set <key> <value>",
-	Short: "Set a configuration option",
-	Long:  `Set a configuration option. Only predefined config keys are allowed.`,
-	Args:  cobra.ExactArgs(2),
-	Run: func(_ *cobra.Command, args []string) {
-		key := args[0]
-		value := args[1]
+func runConfigSet(args []string) error {
+	if len(args) != 2 {
+		return fmt.Errorf("usage: td config set <key> <value>")
+	}
 
-		// Validate the key
-		if err := core.ValidateConfigKey(key); err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-			fmt.Fprintf(os.Stderr, "\nAllowed configuration keys:\n")
-			for k, desc := range core.AllowedConfigKeys {
-				fmt.Fprintf(os.Stderr, "  %-25s - %s\n", k, desc)
-			}
-			os.Exit(1)
+	key := args[0]
+	value := args[1]
+
+	if err := core.ValidateConfigKey(key); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "\nAllowed configuration keys:\n")
+		for k, desc := range core.AllowedConfigKeys {
+			fmt.Fprintf(os.Stderr, "  %-25s - %s\n", k, desc)
 		}
+		return err
+	}
 
-		// Set the config
-		queries, err := core.GetDB()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error connecting to database: %v\n", err)
-			os.Exit(1)
-		}
+	queries, err := core.GetDB()
+	if err != nil {
+		return fmt.Errorf("error connecting to database: %w", err)
+	}
 
-		ctx := context.Background()
-		if err := core.SetConfig(ctx, queries, key, value); err != nil {
-			fmt.Fprintf(os.Stderr, "Error setting config: %v\n", err)
-			os.Exit(1)
-		}
+	ctx := context.Background()
+	if err := core.SetConfig(ctx, queries, key, value); err != nil {
+		return fmt.Errorf("error setting config: %w", err)
+	}
 
-		fmt.Printf("✓ Configuration updated: %s = %s\n", key, value)
-	},
-}
-
-
-func init() {
-	rootCmd.AddCommand(configCmd)
-	configCmd.AddCommand(configSetCmd)
+	fmt.Printf("✓ Configuration updated: %s = %s\n", key, value)
+	return nil
 }

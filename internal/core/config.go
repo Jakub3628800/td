@@ -11,9 +11,9 @@ import (
 
 // AllowedConfigKeys defines the config keys that can be set via CLI
 var AllowedConfigKeys = map[string]string{
-	"music_control_enabled":   "Enable/disable music control during pomodoro sessions (true/false)",
-	"spotify_default_device":  "Default Spotify device ID for playback control",
-	"default_pomo_duration":   "Default duration for pomodoro sessions in minutes (15-60, increment by 5)",
+	"music_control_enabled":  "Enable/disable music control during pomodoro sessions (true/false)",
+	"spotify_default_device": "Default Spotify device ID for playback control",
+	"default_pomo_duration":  "Default duration for pomodoro sessions in minutes (15-60, increment by 5)",
 }
 
 // ValidateConfigKey checks if a config key is allowed

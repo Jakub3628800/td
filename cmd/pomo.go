@@ -2,14 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
+	"strconv"
 	"strings"
 	"time"
-
-	"github.com/charmbracelet/bubbles/progress"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/spf13/cobra"
 
 	"github.com/Jakub3628800/td/internal/core"
 )
@@ -17,188 +15,226 @@ import (
 var duration int
 var tags []string
 
-var pomoCmd = &cobra.Command{
-	Use:   "pomo",
-	Short: "Start a Pomodoro timer",
-	Long:  `Start a Pomodoro timer for focused work sessions. Default duration is 25 minutes.`,
-	Run: func(_ *cobra.Command, _ []string) {
-		if duration <= 0 {
-			fmt.Println("Error: Duration must be greater than 0 minutes")
-			os.Exit(1)
-		}
-
-		hasRunning, err := core.HasRunningPomodoro()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error checking for running pomodoro: %v\n", err)
-			os.Exit(1)
-		}
-		if hasRunning {
-			fmt.Println("A pomodoro is already running. Please wait for it to finish or use 'td list-pomos' to see active sessions.")
-			os.Exit(1)
-		}
-
-		m := initialPomoModel()
-		p := tea.NewProgram(m)
-
-		defer func() {
-			if r := recover(); r != nil {
-				fmt.Println("Program panicked:", r)
-
-				// Check if there's a running session and cancel it
-				hasRunning, err := core.HasRunningPomodoro()
-				if err == nil && hasRunning {
-					fmt.Println("Cancelling running pomodoro session...")
-					core.StopMusic()
-					recordPomoSession(duration, "cancelled", tags)
-				}
-			}
-		}()
-
-		if _, err := p.Run(); err != nil {
-			fmt.Println("Error running program:", err)
-
-			// Check if there's a running session and offer to cancel it
-			hasRunning, checkErr := core.HasRunningPomodoro()
-			if checkErr != nil {
-				fmt.Fprintf(os.Stderr, "Error checking for running pomodoro: %v\n", checkErr)
-				os.Exit(1)
-			}
-
-			if hasRunning {
-				fmt.Println("\nA pomodoro session is still running. Cancelling it...")
-				core.StopMusic()
-				recordPomoSession(duration, "cancelled", tags)
-			}
-
-			os.Exit(1)
-		}
-	},
-}
-
-func init() {
-	rootCmd.AddCommand(pomoCmd)
-	pomoCmd.Flags().IntVarP(&duration, "duration", "d", 25, "Duration in minutes")
-	pomoCmd.Flags().StringSliceVarP(&tags, "tag", "t", []string{}, "Add tags to the pomodoro (can be repeated)")
-}
-
 const (
 	padding  = 2
 	maxWidth = 80
 )
 
-var helpStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")).Render
+var pomoHelp = `Start a Pomodoro timer for focused work sessions. Default duration is 25 minutes.
 
-type tickMsg time.Time
-type doneMsg struct{}
+Usage:
+  td pomo [-d minutes] [-t tag]
 
-type pomoModel struct {
-	progress  progress.Model
-	start     time.Time
-	duration  time.Duration
-	elapsed   time.Duration
-	isPaused  bool
-	pauseTime time.Time
-	done      bool
-}
+Flags:
+  -d, --duration int   Duration in minutes (default 25)
+  -t, --tag string     Add tags to the pomodoro (can be repeated)
+`
 
-func initialPomoModel() pomoModel {
-	return pomoModel{
-		progress: progress.New(
-			progress.WithoutPercentage(),
-			progress.WithDefaultGradient(),
-		),
-		duration: time.Duration(duration) * time.Minute,
-		start:    time.Now(),
-		isPaused: false,
-		done:     false,
+func runPomoCommand(args []string) error {
+	duration = 25
+	tags = []string{}
+
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "-h" || arg == "--help":
+			fmt.Print(pomoHelp)
+			return nil
+		case arg == "-d" || arg == "--duration":
+			if i+1 >= len(args) {
+				return fmt.Errorf("%s requires a value", arg)
+			}
+			i++
+			value, err := strconv.Atoi(args[i])
+			if err != nil {
+				return fmt.Errorf("invalid duration %q: %w", args[i], err)
+			}
+			duration = value
+		case strings.HasPrefix(arg, "--duration="):
+			value, err := strconv.Atoi(strings.TrimPrefix(arg, "--duration="))
+			if err != nil {
+				return fmt.Errorf("invalid duration %q: %w", arg, err)
+			}
+			duration = value
+		case strings.HasPrefix(arg, "-d="):
+			value, err := strconv.Atoi(strings.TrimPrefix(arg, "-d="))
+			if err != nil {
+				return fmt.Errorf("invalid duration %q: %w", arg, err)
+			}
+			duration = value
+		case arg == "-t" || arg == "--tag":
+			if i+1 >= len(args) {
+				return fmt.Errorf("%s requires a value", arg)
+			}
+			i++
+			tags = append(tags, args[i])
+		case strings.HasPrefix(arg, "--tag="):
+			tags = append(tags, strings.TrimPrefix(arg, "--tag="))
+		case strings.HasPrefix(arg, "-t="):
+			tags = append(tags, strings.TrimPrefix(arg, "-t="))
+		default:
+			return fmt.Errorf("unknown pomo argument %q\n\n%s", arg, pomoHelp)
+		}
 	}
+
+	if duration <= 0 {
+		return fmt.Errorf("duration must be greater than 0 minutes")
+	}
+
+	hasRunning, err := core.HasRunningPomodoro()
+	if err != nil {
+		return fmt.Errorf("error checking for running pomodoro: %w", err)
+	}
+	if hasRunning {
+		return fmt.Errorf("a pomodoro is already running. Please wait for it to finish or use 'td list-pomos' to see active sessions")
+	}
+
+	return runPomoTimer()
 }
 
-func (m pomoModel) Init() tea.Cmd {
-	// Start music when session begins
+type terminalState struct {
+	state string
+}
+
+func enableRawMode() (*terminalState, error) {
+	stateCmd := exec.Command("stty", "-g")
+	stateCmd.Stdin = os.Stdin
+	stateBytes, err := stateCmd.Output()
+	if err != nil {
+		return nil, err
+	}
+	state := strings.TrimSpace(string(stateBytes))
+	cmd := exec.Command("stty", "raw", "-echo", "min", "0", "time", "1")
+	cmd.Stdin = os.Stdin
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+	return &terminalState{state: state}, nil
+}
+
+func (s *terminalState) restore() {
+	if s == nil || s.state == "" {
+		return
+	}
+	// #nosec G204 -- state is captured from `stty -g` immediately before raw mode.
+	cmd := exec.Command("stty", s.state)
+	cmd.Stdin = os.Stdin
+	_ = cmd.Run()
+}
+
+func runPomoTimer() error {
+	state, err := enableRawMode()
+	if err != nil {
+		return fmt.Errorf("error enabling raw terminal mode: %w", err)
+	}
+	defer state.restore()
+
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Println("Program panicked:", r)
+			hasRunning, err := core.HasRunningPomodoro()
+			if err == nil && hasRunning {
+				fmt.Println("Cancelling running pomodoro session...")
+				core.StopMusic()
+				recordPomoSession(duration, "cancelled", tags)
+			}
+		}
+	}()
+
+	keyCh := make(chan byte, 8)
+	doneKeys := make(chan struct{})
+	go readKeys(keyCh, doneKeys)
+	defer close(doneKeys)
+
 	core.PlayMusic()
-	return tickCmd()
+
+	start := time.Now()
+	pomodoroDuration := time.Duration(duration) * time.Minute
+	paused := false
+	pauseTime := time.Time{}
+	pausedElapsed := time.Duration(0)
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+
+	renderPomo(start, pomodoroDuration, pausedElapsed, paused, pauseTime, false)
+
+	for {
+		select {
+		case key := <-keyCh:
+			switch key {
+			case 'q', 3: // ctrl+c
+				core.StopMusic()
+				recordPomoSession(duration, "cancelled", tags)
+				fmt.Print("\n")
+				return nil
+			case 'p', ' ':
+				if paused {
+					pausedElapsed += time.Since(pauseTime)
+					paused = false
+				} else {
+					paused = true
+					pauseTime = time.Now()
+				}
+				renderPomo(start, pomodoroDuration, pausedElapsed, paused, pauseTime, false)
+			}
+		case <-ticker.C:
+			if paused {
+				continue
+			}
+			elapsed := time.Since(start) - pausedElapsed
+			if elapsed >= pomodoroDuration {
+				renderPomo(start, pomodoroDuration, pausedElapsed, paused, pauseTime, true)
+				core.StopMusic()
+				core.SendNotification(fmt.Sprintf("pomo session %dm done", duration), false)
+				recordPomoSession(duration, "completed", tags)
+				time.Sleep(time.Second)
+				fmt.Print("\n")
+				return nil
+			}
+			renderPomo(start, pomodoroDuration, pausedElapsed, paused, pauseTime, false)
+		}
+	}
 }
 
-func (m pomoModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c":
-			core.StopMusic()
-			recordPomoSession(duration, "cancelled", tags)
-			return m, tea.Quit
-		case "p", " ":
-			if m.isPaused {
-				m.elapsed += time.Since(m.pauseTime)
-				m.isPaused = false
-				return m, tickCmd()
+func readKeys(keyCh chan<- byte, done <-chan struct{}) {
+	buf := make([]byte, 1)
+	for {
+		select {
+		case <-done:
+			return
+		default:
+		}
+		n, err := os.Stdin.Read(buf)
+		if n == 0 {
+			if err == io.EOF {
+				continue
 			}
-			m.isPaused = true
-			m.pauseTime = time.Now()
-			return m, nil
-		}
-
-	case tea.WindowSizeMsg:
-		m.progress.Width = msg.Width - padding*2 - 4
-		if m.progress.Width > maxWidth {
-			m.progress.Width = maxWidth
-		}
-		return m, nil
-
-	case tickMsg:
-		if m.isPaused {
-			return m, nil
-		}
-
-		elapsed := time.Since(m.start) - m.elapsed
-		if elapsed >= m.duration {
-			if !m.done {
-				m.done = true
-
-				progressCmd := m.progress.SetPercent(1.0)
-
-				go func() {
-					core.StopMusic()
-					core.SendNotification(fmt.Sprintf("pomo session %dm done", duration), false)
-					recordPomoSession(duration, "completed", tags)
-				}()
-
-				return m, tea.Sequence(
-					progressCmd,
-					tea.Tick(time.Second, func(_ time.Time) tea.Msg {
-						return doneMsg{}
-					}),
-				)
+			if err != nil {
+				return
 			}
-			return m, tea.Quit
+			continue
 		}
-
-		percentage := float64(elapsed) / float64(m.duration)
-		progressCmd := m.progress.SetPercent(percentage)
-		return m, tea.Batch(tickCmd(), progressCmd)
-
-	case doneMsg:
-		return m, tea.Quit
-
-	case progress.FrameMsg:
-		progressModel, cmd := m.progress.Update(msg)
-		m.progress = progressModel.(progress.Model)
-		return m, cmd
+		if err != nil && err != io.EOF {
+			return
+		}
+		select {
+		case keyCh <- buf[0]:
+		case <-done:
+			return
+		}
 	}
-
-	return m, nil
 }
 
-func (m pomoModel) View() string {
-	var elapsed time.Duration
-	if m.isPaused {
-		elapsed = time.Since(m.start) - m.elapsed - time.Since(m.pauseTime)
-	} else {
-		elapsed = time.Since(m.start) - m.elapsed
+func renderPomo(start time.Time, sessionDuration, pausedElapsed time.Duration, paused bool, pauseTime time.Time, done bool) {
+	elapsed := time.Since(start) - pausedElapsed
+	if paused {
+		elapsed -= time.Since(pauseTime)
+	}
+	if elapsed < 0 {
+		elapsed = 0
 	}
 
-	remaining := m.duration - elapsed
+	remaining := sessionDuration - elapsed
 	if remaining < 0 {
 		remaining = 0
 	}
@@ -206,25 +242,62 @@ func (m pomoModel) View() string {
 	minutes := int(remaining.Minutes())
 	seconds := int(remaining.Seconds()) % 60
 
-	pad := strings.Repeat(" ", padding)
 	status := ""
-	if m.isPaused {
+	if paused {
 		status = "(Paused)"
-	} else if m.done {
+	} else if done {
 		status = "(Completed!)"
 	}
 
-	return "\n" +
-		pad + fmt.Sprintf("%02d:%02d %s", minutes, seconds, status) + "\n" +
-		pad + m.progress.View() + "\n\n" +
-		pad + helpStyle("Press 'p' or space to pause/resume") + "\n" +
-		pad + helpStyle("Press 'q' to quit")
+	percent := float64(elapsed) / float64(sessionDuration)
+	if done || percent > 1 {
+		percent = 1
+	}
+
+	pad := strings.Repeat(" ", padding)
+	barWidth := terminalWidth() - padding*2 - 4
+	if barWidth > maxWidth {
+		barWidth = maxWidth
+	}
+	if barWidth < 10 {
+		barWidth = 10
+	}
+
+	fmt.Print("\033[H\033[2J")
+	fmt.Print("\n")
+	fmt.Printf("%s%02d:%02d %s\n", pad, minutes, seconds, status)
+	fmt.Printf("%s%s\n\n", pad, renderProgressBar(percent, barWidth))
+	fmt.Printf("%s\033[90mPress 'p' or space to pause/resume\033[0m\n", pad)
+	fmt.Printf("%s\033[90mPress 'q' to quit\033[0m", pad)
 }
 
-func tickCmd() tea.Cmd {
-	return tea.Tick(time.Second, func(t time.Time) tea.Msg {
-		return tickMsg(t)
-	})
+func renderProgressBar(percent float64, width int) string {
+	filled := int(percent * float64(width))
+	if filled > width {
+		filled = width
+	}
+	if filled < 0 {
+		filled = 0
+	}
+	return strings.Repeat("█", filled) + strings.Repeat("░", width-filled)
+}
+
+func terminalWidth() int {
+	cmd := exec.Command("stty", "size")
+	cmd.Stdin = os.Stdin
+	out, err := cmd.Output()
+	if err != nil {
+		return maxWidth
+	}
+	fields := strings.Fields(string(out))
+	if len(fields) != 2 {
+		return maxWidth
+	}
+	width, err := strconv.Atoi(fields[1])
+	if err != nil {
+		return maxWidth
+	}
+	return width
 }
 
 func recordPomoSession(durationMinutes int, status string, tags []string) {

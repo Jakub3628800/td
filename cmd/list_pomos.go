@@ -3,11 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"strings"
 	"time"
-
-	"github.com/spf13/cobra"
 
 	"github.com/Jakub3628800/td/internal/core"
 	"github.com/Jakub3628800/td/internal/db"
@@ -18,63 +15,90 @@ var (
 	listPomosBefore string
 )
 
-var listPomosCmd = &cobra.Command{
-	Use:   "list-pomos",
-	Short: "List all pomodoro sessions",
-	Long:  `List all pomodoro sessions in a table format, ordered from most recent to oldest.`,
-	Run: func(_ *cobra.Command, _ []string) {
-		queries, err := core.GetDB()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error connecting to database: %v\n", err)
-			os.Exit(1)
-		}
+var listPomosHelp = `List all pomodoro sessions in a table format, ordered from most recent to oldest.
 
-		ctx := context.Background()
+Usage:
+  td list-pomos [--after YYYY-MM-DD] [--before YYYY-MM-DD]
+`
 
-		var pomodoros []db.Pomodori
-		if listPomosAfter != "" || listPomosBefore != "" {
-			afterTime := time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local)
-			beforeTime := time.Date(2100, 1, 1, 0, 0, 0, 0, time.Local)
+func runListPomosCommand(args []string) error {
+	listPomosAfter = ""
+	listPomosBefore = ""
 
-			if listPomosAfter != "" {
-				parsed, err := time.ParseInLocation("2006-01-02", listPomosAfter, time.Local)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error parsing --after date: %v\n", err)
-					os.Exit(1)
-				}
-				afterTime = parsed
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch {
+		case arg == "-h" || arg == "--help":
+			fmt.Print(listPomosHelp)
+			return nil
+		case arg == "--after":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--after requires a value")
 			}
-
-			if listPomosBefore != "" {
-				parsed, err := time.ParseInLocation("2006-01-02", listPomosBefore, time.Local)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "Error parsing --before date: %v\n", err)
-					os.Exit(1)
-				}
-				// Add one day to include the entire "before" date
-				beforeTime = parsed.AddDate(0, 0, 1)
+			i++
+			listPomosAfter = args[i]
+		case strings.HasPrefix(arg, "--after="):
+			listPomosAfter = strings.TrimPrefix(arg, "--after=")
+		case arg == "--before":
+			if i+1 >= len(args) {
+				return fmt.Errorf("--before requires a value")
 			}
+			i++
+			listPomosBefore = args[i]
+		case strings.HasPrefix(arg, "--before="):
+			listPomosBefore = strings.TrimPrefix(arg, "--before=")
+		default:
+			return fmt.Errorf("unknown list-pomos argument %q\n\n%s", arg, listPomosHelp)
+		}
+	}
 
-			pomodoros, err = queries.ListPomodoriFiltered(ctx, db.ListPomodoriFilteredParams{
-				StartTime:   afterTime,
-				StartTime_2: beforeTime,
-			})
-		} else {
-			pomodoros, err = queries.ListPomodori(ctx)
+	queries, err := core.GetDB()
+	if err != nil {
+		return fmt.Errorf("error connecting to database: %w", err)
+	}
+
+	ctx := context.Background()
+
+	var pomodoros []db.Pomodori
+	if listPomosAfter != "" || listPomosBefore != "" {
+		afterTime := time.Date(1970, 1, 1, 0, 0, 0, 0, time.Local)
+		beforeTime := time.Date(2100, 1, 1, 0, 0, 0, 0, time.Local)
+
+		if listPomosAfter != "" {
+			parsed, err := time.ParseInLocation("2006-01-02", listPomosAfter, time.Local)
+			if err != nil {
+				return fmt.Errorf("error parsing --after date: %w", err)
+			}
+			afterTime = parsed
 		}
 
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error listing pomodoros: %v\n", err)
-			os.Exit(1)
+		if listPomosBefore != "" {
+			parsed, err := time.ParseInLocation("2006-01-02", listPomosBefore, time.Local)
+			if err != nil {
+				return fmt.Errorf("error parsing --before date: %w", err)
+			}
+			beforeTime = parsed.AddDate(0, 0, 1)
 		}
 
-		if len(pomodoros) == 0 {
-			fmt.Println("No pomodoro sessions recorded yet.")
-			return
-		}
+		pomodoros, err = queries.ListPomodoriFiltered(ctx, db.ListPomodoriFilteredParams{
+			StartTime:   afterTime,
+			StartTime_2: beforeTime,
+		})
+	} else {
+		pomodoros, err = queries.ListPomodori(ctx)
+	}
 
-		printPomodoroTable(pomodoros)
-	},
+	if err != nil {
+		return fmt.Errorf("error listing pomodoros: %w", err)
+	}
+
+	if len(pomodoros) == 0 {
+		fmt.Println("No pomodoro sessions recorded yet.")
+		return nil
+	}
+
+	printPomodoroTable(pomodoros)
+	return nil
 }
 
 func printPomodoroTable(pomodoros []db.Pomodori) {
@@ -122,10 +146,4 @@ func getPomoStatus(p db.Pomodori, now time.Time) string {
 	}
 
 	return "cancelled"
-}
-
-func init() {
-	rootCmd.AddCommand(listPomosCmd)
-	listPomosCmd.Flags().StringVar(&listPomosAfter, "after", "", "Show pomodoros on or after this date (format: 2006-01-02)")
-	listPomosCmd.Flags().StringVar(&listPomosBefore, "before", "", "Show pomodoros on or before this date (format: 2006-01-02)")
 }

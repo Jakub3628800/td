@@ -10,19 +10,26 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-
-	"github.com/spf13/cobra"
 )
 
 var Version string
 
-var selfUpdateCmd = &cobra.Command{
-	Use:   "self-update",
-	Short: "Check for and install updates",
-	Long:  `Check for the latest version of td and optionally update to it.`,
-	Run: func(_ *cobra.Command, _ []string) {
-		checkAndUpdate()
-	},
+var selfUpdateHelp = `Check for the latest version of td and optionally update to it.
+
+Usage:
+  td self-update
+`
+
+func runSelfUpdateCommand(args []string) error {
+	if len(args) > 0 {
+		if len(args) == 1 && (args[0] == "-h" || args[0] == "--help") {
+			fmt.Print(selfUpdateHelp)
+			return nil
+		}
+		return fmt.Errorf("unknown self-update argument %q\n\n%s", args[0], selfUpdateHelp)
+	}
+	checkAndUpdate()
+	return nil
 }
 
 func checkAndUpdate() {
@@ -141,8 +148,4 @@ func performUpdate(version string) {
 	}
 
 	fmt.Printf("\nSuccessfully updated to version %s!\n", version)
-}
-
-func init() {
-	rootCmd.AddCommand(selfUpdateCmd)
 }
