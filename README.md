@@ -85,7 +85,10 @@ td --help
 
 The following configuration keys are available:
 
-- **`music_control_enabled`** (values: `true` or `false`): Enable or disable automatic music control during pomodoro sessions. When enabled, music will start playing when a session begins and stop when it ends. Requires [playerctl](https://github.com/altdesktop/playerctl) to be installed.
+- **`music_control_enabled`** (values: `true` or `false`): Enable or
+  disable automatic music control during pomodoro sessions. When enabled, music
+  will start playing when a session begins and stop when it ends. Requires
+  [playerctl](https://github.com/altdesktop/playerctl) to be installed.
 
   ```bash
   # Enable music control
@@ -101,7 +104,9 @@ The following configuration keys are available:
   td config set spotify_default_device <device_id>
   ```
 
-**Note**: If `music_control_enabled` is set to `true` but `playerctl` is not installed, you'll see a warning message when starting a pomodoro session. The session will continue normally without music control.
+**Note**: If `music_control_enabled` is set to `true` but `playerctl` is not
+installed, you'll see a warning message when starting a pomodoro session. The
+session will continue normally without music control.
 
 ## Development
 
@@ -132,11 +137,13 @@ the directory (requires [direnv](https://direnv.net/)).
 Follow these steps to publish a new release:
 
 1. **Update the version** in `main.go`:
+
    ```go
    Version = "X.Y.Z"  // Update this constant
    ```
 
 2. **Commit the version bump**:
+
    ```bash
    git add main.go
    git commit -m "Bump version to X.Y.Z"
@@ -144,24 +151,28 @@ Follow these steps to publish a new release:
    ```
 
 3. **Create and push a Git tag**:
+
    ```bash
    git tag -a vX.Y.Z -m "Release vX.Y.Z: <description of changes>"
    git push origin vX.Y.Z
    ```
 
 4. **Verify the release** (wait a few seconds for Go proxy to cache):
+
    ```bash
    go install github.com/Jakub3628800/td@vX.Y.Z
    td --version
    ```
 
 Users can then install the new version with:
+
 ```bash
 go install github.com/Jakub3628800/td@vX.Y.Z
 go install github.com/Jakub3628800/td@latest  # Always gets newest
 ```
 
 **Important Notes:**
+
 - Semantic versioning (MAJOR.MINOR.PATCH)
 - Create annotated tags (`git tag -a`, not `-l`)
 - Version in `main.go` must match the Git tag
@@ -174,10 +185,7 @@ for details.
 
 ## Acknowledgements
 
-- [Cobra](https://github.com/spf13/cobra) for CLI interface
-- [Bubble Tea](https://github.com/charmbracelet/bubbletea) for terminal UI framework
 - [SQLc](https://sqlc.dev/) for type-safe database queries
-- [Lipgloss](https://github.com/charmbracelet/lipgloss) for terminal styling
 
 ---
 

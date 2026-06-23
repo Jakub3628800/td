@@ -19,7 +19,7 @@ func TestPomoIntegration(t *testing.T) {
 // TestRootCommandPomoKey tests that pressing 'p' in the root command
 // launches a pomodoro session and adds a record when completed
 func TestRootCommandPomoKey(t *testing.T) {
-	// This is a more complex test that would require mocking the tea.Program
+	// This is a more complex test that would require mocking terminal input
 	// and simulating key presses, which is beyond the scope of this implementation.
 	// In a real-world scenario, you would use a testing framework that can
 	// simulate user input and verify the resulting state changes.

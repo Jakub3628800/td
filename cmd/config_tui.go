@@ -3,10 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
-
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 
 	"github.com/Jakub3628800/td/internal/core"
 )
@@ -15,30 +13,22 @@ import (
 var validPomodoroDurations = []int{15, 20, 25, 30, 35, 40, 45, 50, 55, 60}
 
 type configModel struct {
-	// State
-	currentOption   int // 0 = music control, 1 = pomo duration
-	musicEnabled    bool
-	pomoDuration    int
+	currentOption    int // 0 = music control, 1 = pomo duration
+	musicEnabled     bool
+	pomoDuration     int
 	selectedDuration int
 	showDurationMenu bool
-
-	// Style
-	selectedStyle lipgloss.Style
-	normalStyle   lipgloss.Style
-	helpStyle     lipgloss.Style
 }
 
 func initialConfigModel() configModel {
 	queries, _ := core.GetDB()
 	ctx := context.Background()
 
-	// Get current music control setting
 	musicEnabled := false
 	if value, err := core.GetConfig(ctx, queries, "music_control_enabled"); err == nil && value == "true" {
 		musicEnabled = true
 	}
 
-	// Get current pomo duration
 	pomoDuration := core.GetDefaultPromoDuration()
 	selectedDuration := pomoDuration
 	for i, d := range validPomodoroDurations {
@@ -54,134 +44,214 @@ func initialConfigModel() configModel {
 		pomoDuration:     pomoDuration,
 		selectedDuration: selectedDuration,
 		showDurationMenu: false,
-		selectedStyle:    lipgloss.NewStyle().Foreground(lipgloss.Color("#00ff00")).Bold(true),
-		normalStyle:      lipgloss.NewStyle(),
-		helpStyle:        lipgloss.NewStyle().Foreground(lipgloss.Color("#626262")),
 	}
 }
 
-func (m configModel) Init() tea.Cmd {
-	return nil
-}
+func runConfigTUI() {
+	if os.Getenv("TD_TEST_MODE") == "true" {
+		fmt.Println("Config TUI skipped in test mode")
+		return
+	}
 
-func (m configModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyMsg:
-		switch msg.String() {
+	state, err := enableRawMode()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error running config TUI: %v\n", err)
+		os.Exit(1)
+	}
+	defer state.restore()
+
+	model := initialConfigModel()
+
+	for {
+		renderConfig(model)
+		key, err := readConfigKey()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading input: %v\n", err)
+			os.Exit(1)
+		}
+
+		switch key {
 		case "q", "ctrl+c":
-			return m, tea.Quit
-
+			fmt.Print("\n✓ Configuration saved!\n")
+			return
 		case "up", "k":
-			if m.showDurationMenu {
-				if m.selectedDuration > 0 {
-					m.selectedDuration--
+			if model.showDurationMenu {
+				if model.selectedDuration > 0 {
+					model.selectedDuration--
 				}
-			} else {
-				if m.currentOption > 0 {
-					m.currentOption--
-				}
+			} else if model.currentOption > 0 {
+				model.currentOption--
 			}
-			return m, nil
-
 		case "down", "j":
-			if m.showDurationMenu {
-				if m.selectedDuration < len(validPomodoroDurations)-1 {
-					m.selectedDuration++
+			if model.showDurationMenu {
+				if model.selectedDuration < len(validPomodoroDurations)-1 {
+					model.selectedDuration++
 				}
-			} else {
-				if m.currentOption < 1 {
-					m.currentOption++
-				}
+			} else if model.currentOption < 1 {
+				model.currentOption++
 			}
-			return m, nil
-
 		case "enter", " ":
-			if m.showDurationMenu {
-				// Save the selected duration
-				m.pomoDuration = validPomodoroDurations[m.selectedDuration]
-				saveConfig("default_pomo_duration", fmt.Sprintf("%d", m.pomoDuration))
-				m.showDurationMenu = false
-			} else if m.currentOption == 0 {
-				// Toggle music control
-				m.musicEnabled = !m.musicEnabled
+			if model.showDurationMenu {
+				model.pomoDuration = validPomodoroDurations[model.selectedDuration]
+				saveConfig("default_pomo_duration", fmt.Sprintf("%d", model.pomoDuration))
+				model.showDurationMenu = false
+			} else if model.currentOption == 0 {
+				model.musicEnabled = !model.musicEnabled
 				value := "false"
-				if m.musicEnabled {
+				if model.musicEnabled {
 					value = "true"
 				}
 				saveConfig("music_control_enabled", value)
-			} else if m.currentOption == 1 {
-				// Enter duration selection menu
-				m.showDurationMenu = true
+			} else if model.currentOption == 1 {
+				model.showDurationMenu = true
 			}
-			return m, nil
-
 		case "esc":
-			if m.showDurationMenu {
-				m.showDurationMenu = false
-				m.selectedDuration = -1
+			if model.showDurationMenu {
+				model.showDurationMenu = false
+				model.selectedDuration = -1
 				for i, d := range validPomodoroDurations {
-					if d == m.pomoDuration {
-						m.selectedDuration = i
+					if d == model.pomoDuration {
+						model.selectedDuration = i
 						break
 					}
 				}
 			}
-			return m, nil
 		}
 	}
-	return m, nil
 }
 
-func (m configModel) View() string {
-	if m.showDurationMenu {
-		return m.renderDurationMenu()
+func readConfigKey() (string, error) {
+	b, err := readInputByteBlocking()
+	if err != nil {
+		return "", err
 	}
-	return m.renderMainMenu()
+
+	switch b {
+	case 3:
+		return "ctrl+c", nil
+	case '\r', '\n':
+		return "enter", nil
+	case 27:
+		second, ok, err := readInputByteOptional()
+		if err != nil {
+			return "", err
+		}
+		if !ok || second != '[' {
+			return "esc", nil
+		}
+		third, ok, err := readInputByteOptional()
+		if err != nil {
+			return "", err
+		}
+		if !ok {
+			return "esc", nil
+		}
+		switch third {
+		case 'A':
+			return "up", nil
+		case 'B':
+			return "down", nil
+		}
+		return "esc", nil
+	case 'q':
+		return "q", nil
+	case 'k':
+		return "k", nil
+	case 'j':
+		return "j", nil
+	case ' ':
+		return " ", nil
+	}
+	return string(b), nil
 }
 
-func (m configModel) renderMainMenu() string {
+func readInputByteBlocking() (byte, error) {
+	buf := make([]byte, 1)
+	for {
+		n, err := os.Stdin.Read(buf)
+		if n > 0 {
+			return buf[0], nil
+		}
+		if err == io.EOF {
+			continue
+		}
+		if err != nil {
+			return 0, err
+		}
+	}
+}
+
+func readInputByteOptional() (byte, bool, error) {
+	buf := make([]byte, 1)
+	n, err := os.Stdin.Read(buf)
+	if n > 0 {
+		return buf[0], true, nil
+	}
+	if err == io.EOF {
+		return 0, false, nil
+	}
+	if err != nil {
+		return 0, false, err
+	}
+	return 0, false, nil
+}
+
+func renderConfig(m configModel) {
+	fmt.Print("\033[H\033[2J")
+	if m.showDurationMenu {
+		fmt.Print(renderDurationMenu(m))
+		return
+	}
+	fmt.Print(renderMainMenu(m))
+}
+
+func renderMainMenu(m configModel) string {
 	output := "\n Configuration Menu\n\n"
 
-	// Music Control option
 	musicStatus := "OFF"
 	if m.musicEnabled {
 		musicStatus = "ON"
 	}
 	musicLine := fmt.Sprintf("Music Control: %s", musicStatus)
 	if m.currentOption == 0 {
-		output += m.selectedStyle.Render("▶ " + musicLine) + "\n"
+		output += selectedText("▶ "+musicLine) + "\n"
 	} else {
-		output += m.normalStyle.Render("  " + musicLine) + "\n"
+		output += "  " + musicLine + "\n"
 	}
 
-	// Pomo Duration option
 	durLine := fmt.Sprintf("Default Pomodoro Duration: %d minutes", m.pomoDuration)
 	if m.currentOption == 1 {
-		output += m.selectedStyle.Render("▶ " + durLine) + "\n"
+		output += selectedText("▶ "+durLine) + "\n"
 	} else {
-		output += m.normalStyle.Render("  " + durLine) + "\n"
+		output += "  " + durLine + "\n"
 	}
 
-	output += "\n" + m.helpStyle.Render("↑/k: up  ↓/j: down  Enter: select  q: quit") + "\n"
-
+	output += "\n" + helpText("↑/k: up  ↓/j: down  Enter: select  q: quit") + "\n"
 	return output
 }
 
-func (m configModel) renderDurationMenu() string {
+func renderDurationMenu(m configModel) string {
 	output := "\n Select Default Pomodoro Duration\n\n"
 
 	for i, duration := range validPomodoroDurations {
 		durationStr := fmt.Sprintf("%d minutes", duration)
 		if i == m.selectedDuration {
-			output += m.selectedStyle.Render("▶ " + durationStr) + "\n"
+			output += selectedText("▶ "+durationStr) + "\n"
 		} else {
-			output += m.normalStyle.Render("  " + durationStr) + "\n"
+			output += "  " + durationStr + "\n"
 		}
 	}
 
-	output += "\n" + m.helpStyle.Render("↑/k: up  ↓/j: down  Enter: select  Esc: back  q: quit") + "\n"
-
+	output += "\n" + helpText("↑/k: up  ↓/j: down  Enter: select  Esc: back  q: quit") + "\n"
 	return output
+}
+
+func selectedText(s string) string {
+	return "\033[32;1m" + s + "\033[0m"
+}
+
+func helpText(s string) string {
+	return "\033[90m" + s + "\033[0m"
 }
 
 func saveConfig(key, value string) {
@@ -197,21 +267,3 @@ func saveConfig(key, value string) {
 		return
 	}
 }
-
-func runConfigTUI() {
-	if os.Getenv("TD_TEST_MODE") == "true" {
-		fmt.Println("Config TUI skipped in test mode")
-		return
-	}
-
-	m := initialConfigModel()
-	p := tea.NewProgram(m)
-
-	if _, err := p.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error running config TUI: %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Println("\n✓ Configuration saved!")
-}
-
